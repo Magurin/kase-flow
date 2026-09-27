@@ -54,10 +54,34 @@ if (process.argv.includes("--serve")) {
     throw Error(
       "Need test SOL from https://faucet.solana.com; Mainnet SOL cannot be used here.",
     );
-  if (
-    !(await c.getAccountInfo(program.publicKey))?.executable ||
-    process.argv.includes("--upgrade")
-  ) {
+  const deployed = (await c.getAccountInfo(program.publicKey))?.executable;
+  if (!deployed || process.argv.includes("--upgrade")) {
+    if (deployed) {
+      // The loader refuses extensions under 10 KiB, so grow with headroom first.
+      const { PublicKey } = await import("@solana/web3.js");
+      const [programData] = PublicKey.findProgramAddressSync(
+        [program.publicKey.toBuffer()],
+        new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111"),
+      );
+      const capacity = (await c.getAccountInfo(programData)).data.length - 45;
+      if (bytes > capacity) {
+        const extend = spawnSync(
+          "solana",
+          [
+            "program",
+            "extend",
+            program.publicKey.toBase58(),
+            String(Math.max(10240, bytes - capacity + 10240)),
+            "--keypair",
+            ".local/devnet/issuer.json",
+            "--url",
+            process.env.SOLANA_RPC_URL,
+          ],
+          { stdio: "inherit", windowsHide: true },
+        );
+        if (extend.status !== 0) throw Error("Devnet program extension failed");
+      }
+    }
     const r = spawnSync(
       "solana",
       [

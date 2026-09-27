@@ -5,7 +5,8 @@ use super::*;
 use solana_program::{program::invoke_signed, program_option::COption, program_pack::Pack};
 use spl_token_2022::{
     extension::{
-        permanent_delegate::PermanentDelegate, BaseStateWithExtensions, StateWithExtensions,
+        permanent_delegate::PermanentDelegate, BaseStateWithExtensions, ExtensionType,
+        StateWithExtensions,
     },
     state::{Account as BondAccount, AccountState, Mint as BondMint},
 };
@@ -131,8 +132,16 @@ pub fn attach(program: &Pubkey, accounts: &[AccountInfo], s: &mut Instrument) ->
                 && Option::<Pubkey>::from(delegate.delegate) == Some(*pda.key),
             "Invalid bond mint authorities",
         )?;
+        // Display metadata is allowed; any extension that can move or hook tokens is not.
         ensure(
-            m.get_extension_types()?.len() == 1,
+            m.get_extension_types()?.iter().all(|t| {
+                matches!(
+                    t,
+                    ExtensionType::PermanentDelegate
+                        | ExtensionType::MetadataPointer
+                        | ExtensionType::TokenMetadata
+                )
+            }),
             "Unexpected bond mint extensions",
         )?;
     }
@@ -314,4 +323,53 @@ pub fn transfer(
     )?;
     freeze(source, mint, pda, token, state.key, bump, true)?;
     freeze(dest, mint, pda, token, state.key, bump, true)
+}
+pub fn withdraw(
+    program: &Pubkey,
+    accounts: &[AccountInfo],
+    tokens: &TokenState,
+    issuer: &Pubkey,
+) -> ProgramResult {
+    ensure(accounts.len() == 7, "Missing withdrawal accounts")?;
+    let (state, pda, cash, vault, spl, destination) = (
+        &accounts[0],
+        &accounts[2],
+        &accounts[3],
+        &accounts[4],
+        &accounts[5],
+        &accounts[6],
+    );
+    let bump = authority(program, state, pda)?;
+    ensure(*spl.key == spl_token::id(), "Wrong cash token program")?;
+    ensure(
+        cash.key.to_bytes() == tokens.cash_mint && vault.key.to_bytes() == tokens.vault,
+        "Wrong escrow mint or vault",
+    )?;
+    cash_account(vault, cash.key, pda.key)?;
+    cash_account(destination, cash.key, issuer)?;
+    let amount = spl_token::state::Account::unpack(&vault.try_borrow_data()?)?.amount;
+    ensure(amount > 0, "Escrow is empty")?;
+    cpi(
+        spl_token::instruction::transfer_checked(
+            spl.key,
+            vault.key,
+            cash.key,
+            destination.key,
+            pda.key,
+            &[],
+            amount,
+            6,
+        )?,
+        &[
+            vault.clone(),
+            cash.clone(),
+            destination.clone(),
+            pda.clone(),
+            spl.clone(),
+        ],
+        state.key,
+        bump,
+    )?;
+    msg!("Escrow residual returned to issuer: {}", amount);
+    Ok(())
 }

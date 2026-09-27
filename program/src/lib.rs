@@ -15,6 +15,8 @@ entrypoint!(process_instruction);
 mod token;
 const MAX_HOLDERS: usize = 16;
 const MAX_ACTIONS: usize = 16;
+/// Latest record date accepted after an obligation becomes due; bounds operator typos.
+const RECORD_GRACE: i64 = 30 * 86_400;
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
 pub struct Holder {
     pub wallet: [u8; 32],
@@ -82,6 +84,10 @@ pub enum Instruction {
         units: u64,
     },
     AttachTokens,
+    /// Removes the latest action before any entitlement of it is paid.
+    Cancel,
+    /// Returns the remaining escrow to the issuer after the instrument is closed.
+    Withdraw,
 }
 fn ensure(ok: bool, message: &str) -> ProgramResult {
     if !ok {
@@ -236,6 +242,24 @@ pub fn process_instruction(
             )?;
             match other {
                 Instruction::AttachTokens => token::attach(program_id, accounts, &mut s)?,
+                Instruction::Cancel => {
+                    ensure(s.authority == signer.key.to_bytes(), "Issuer authority required")?;
+                    let a = s.actions.last().ok_or(ProgramError::InvalidArgument)?;
+                    ensure(
+                        a.status < 3 && a.rows.iter().all(|r| !r.settled),
+                        "Only an unpaid action can be cancelled",
+                    )?;
+                    s.actions.pop();
+                    msg!("Latest action cancelled");
+                }
+                Instruction::Withdraw => {
+                    ensure(s.authority == signer.key.to_bytes(), "Issuer authority required")?;
+                    ensure(
+                        s.tokens.enabled && s.supply == 0 && !active(&s),
+                        "Escrow is released only after full redemption",
+                    )?;
+                    token::withdraw(program_id, accounts, &s.tokens, signer.key)?;
+                }
                 Instruction::Schedule {
                     kind,
                     period,
@@ -250,6 +274,7 @@ pub fn process_instruction(
                         kind <= 2 && record_at >= clock.unix_timestamp,
                         "Invalid kind or historical record date",
                     )?;
+                    let latest = |due: i64| due.max(clock.unix_timestamp) + RECORD_GRACE;
                     if kind == 0 {
                         ensure(
                             period > 0
@@ -260,11 +285,16 @@ pub fn process_instruction(
                         let due = s.issued_at
                             + (s.maturity - s.issued_at) * (period as i64) / (s.periods as i64);
                         ensure(record_at >= due, "Coupon period not due")?;
+                        ensure(record_at <= latest(due), "Record date too far after due date")?;
                         ensure(bps == 0, "Coupon uses instrument rate")?;
                     } else if kind == 1 {
                         ensure(
                             record_at >= s.maturity && bps == 10_000,
                             "Redemption before maturity",
+                        )?;
+                        ensure(
+                            record_at <= latest(s.maturity),
+                            "Record date too far after maturity",
                         )?;
                         let all = (1u64 << (s.periods as u64 + 1)) - 2;
                         ensure(
@@ -275,6 +305,12 @@ pub fn process_instruction(
                         ensure(
                             bps > 0 && bps < 10_000 && record_at < s.maturity,
                             "Invalid partial redemption",
+                        )?;
+                        ensure(
+                            s.holders
+                                .iter()
+                                .any(|h| (h.units as u128) * (bps as u128) >= 10_000),
+                            "Partial redemption retires no whole bond",
                         )?;
                         let remaining_coupons =
                             s.periods as usize - s.coupon_mask.count_ones() as usize;
