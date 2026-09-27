@@ -1,13 +1,41 @@
-# KASE-inspired interface
+# Interface design
 
-Reference: https://kase.kz/kz, inspected on 27 September 2026.
+KASE Flow is an operator console for the KASE ecosystem, so it follows the exchange's own visual language rather than a marketing landing page. Reference: https://kase.kz/ru/, inspected on 27 September 2026 (computed styles of the live page).
 
-The interface follows the exchange's white masthead, horizontal navigation, green active underline, graphite text, thin dividers and restrained corners. It retains the KASE Flow prototype identity and explicit Solana Devnet / TEST USD disclosures.
+## Brand values taken from kase.kz
 
-`src/kase-theme.css` defines the visual tokens and responsive theme over the layout primitives in `src/style.css`. The primary green is `#028A29`, text is `#1E212B`, secondary surface is `#F1F3F4`. System Segoe UI / Arial fonts avoid requiring the reference site's proprietary Museo Sans Cyrl font or a remote font request.
+| Token | Value | Use |
+| --- | --- | --- |
+| Ink | `#1E212B` | Text, headings |
+| Secondary | `#45464F` | Secondary text, icons |
+| KASE green | `#028A29` | The only accent: primary actions, active navigation, positive values |
+| Surface | `#F1F3F4` | Page background, table headers |
+| Falling red | `#C00008` | Shortfalls, errors, destructive actions |
 
-All six dropdown fields use `src/CustomSelect.tsx`, backed by Radix Select: action type, coupon period, redemption percentage, sender, recipient and test investor. New dropdowns should use this component. It provides keyboard navigation, typeahead, disabled options, focus restoration, a selected checkmark, collision-aware placement and a portal above dialogs. Browser tests must select `combobox` / `option` roles instead of calling native `selectOption`.
+kase.kz sets text in Museo Sans Cyrl (weight 300-400), which is proprietary. The app bundles **Golos Text** (`@fontsource-variable/golos-text`, served locally, no external font requests): a Cyrillic-first grotesque with a similar open, friendly character. All figures use tabular numerals.
 
-Validation: TypeScript/Vite production build passed. Browser checks covered the investor selection with arrows and Enter, Escape/focus restoration, action type and percentage selection, paid coupon periods disabled and skipped by Home, and menus inside dialogs. Responsive checks passed at 390px and 320px without page-wide horizontal overflow. Tables and navigation scroll within their own containers. Transfer dropdowns use the same component; their live form could not be exercised because the current issue had matured. No transaction was submitted for this design verification.
+## Structure
 
-Existing videos/screenshots in `artifacts/` predate this redesign; regenerate them before using them to present the current interface.
+- **Top bar**: product mark, network indicator (Solana Devnet, slot), a permanent "Тестовая среда" badge, "О прототипе", investor cabinet.
+- **Market data strip**: modelled on the index ticker under the kase.kz header. Shows the current issue's ticker, face value, coupon, bonds outstanding, escrow, the next event with a countdown (red when the operator must act) and chain time.
+- **Sidebar**: current issue card, issue sections (overview, corporate actions, calendar and control, holder registry, journal) and participant sections (issuer catalog, investor cabinet). Collapses into a horizontal tab row under 960 px.
+- **Pages** share one pattern: breadcrumb with the ticker, title, one-line purpose, primary action on the right; then a KPI row and panels.
+
+## Conventions
+
+- Numbers follow the exchange's ru-RU format: `1 200 000,00`, units in a smaller muted suffix (`TEST USD`, `обл.`). Money is right-aligned in tables. Dates are `27.09.2026, 05:40:47` in chain time.
+- Data lives in tables with light grey headers, not cards. Clicking a row opens details (actions, journal transactions, catalog issues).
+- Status badges: green = done or in circulation, amber = waiting for a date, blue = in progress, red = needs attention.
+- Corporate actions use a four-step stepper (record date, snapshot, initiation, payments) with the next command next to the status line. Cancellation needs an inline confirmation.
+- Dialogs have a header, scrollable body and a footer with the primary action on the right. Escape closes them unless a transaction is confirming.
+- Dropdowns use `src/CustomSelect.tsx` (Radix Select). Browser tests select `combobox` / `option` roles.
+
+## Code layout
+
+- `src/app.css`: the whole design system (tokens, frame, panels, tables, badges, buttons, forms, dialogs, responsive rules).
+- `src/format.ts`: number, date and countdown formatting.
+- `src/domain.ts`: state types and pure helpers mirroring the program rules (entitlements, due dates, next event).
+- `src/pages/*`: one component per screen; `src/dialogs.tsx`: action, transfer, about and transaction dialogs; `src/main.tsx`: the shell.
+- `node scripts/screens.mjs <dir> [issue] [width]` captures every screen and dialog for review.
+
+Screenshots and videos in `artifacts/` recorded before this redesign show the previous interface.

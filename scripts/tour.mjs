@@ -36,18 +36,18 @@ try {
     404,
   );
   for (const [title, file] of [
-    ["Обзор", "dashboard"],
+    ["Обзор выпуска", "dashboard"],
     ["Кабинет инвестора", "investor"],
     ["Журнал операций", "journal"],
   ]) {
-    await page.getByRole("button", { name: title, exact: true }).click();
+    await page.getByRole("button", { name: title, exact: true }).first().click();
     await page.waitForTimeout(3000);
     await page.screenshot({
       path: `artifacts/devnet-${file}.png`,
       fullPage: true,
     });
   }
-  await page.locator(".journal-row").first().click();
+  await page.locator("tbody tr.clickable").first().click();
   await page.getByRole("dialog", { name: "Транзакция Solana" }).waitFor();
   const explorer = page.getByRole("link", {
     name: "Открыть в Solana Explorer",
@@ -62,6 +62,7 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await page
     .getByRole("button", { name: "Кабинет инвестора", exact: true })
+    .first()
     .click();
   await page.evaluate(() => document.fonts.ready);
   assert.ok(

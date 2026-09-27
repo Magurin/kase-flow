@@ -67,6 +67,7 @@ try {
   await page.goto("http://127.0.0.1:5173/");
   await page
     .getByRole("button", { name: "Кабинет инвестора", exact: true })
+    .first()
     .click();
   await page.getByRole("button", { name: "Phantom", exact: false }).click();
   await page

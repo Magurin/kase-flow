@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./main";
+import type { Page } from "./ctx";
 // Storage can be unavailable (private mode, blocked site data); selection then
 // simply is not remembered.
 const remembered = () => {
@@ -16,9 +17,9 @@ const remember = (id: string) => {
   } catch {}
 };
 function Platform() {
-  const [view, setView] = useState(() => ({
+  const [view, setView] = useState<{ id: string; page: Page }>(() => ({
     id: remembered(),
-    page: 5,
+    page: "issues",
   }));
   return (
     <App
@@ -27,7 +28,7 @@ function Platform() {
       startPage={view.page}
       onSelect={(id) => {
         remember(id);
-        setView({ id, page: 0 });
+        setView({ id, page: "overview" });
       }}
     />
   );

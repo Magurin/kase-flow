@@ -15,58 +15,48 @@ const state = async () =>
   await (await page.request.get("http://127.0.0.1:3001/api/state")).json();
 const pause = (ms) => page.waitForTimeout(ms);
 const click = async (name) => {
-  const b = page.getByRole("button", { name, exact: true });
+  const b = page.getByRole("button", { name, exact: true }).first();
   await b.waitFor();
   await b.click();
 };
 async function settle() {
-  const snapshot = page.getByRole("button", {
-    name: "Зафиксировать права",
-    exact: true,
-  });
+  const snapshot = page
+    .getByRole("button", { name: "Зафиксировать реестр", exact: true })
+    .first();
   await snapshot.waitFor();
   await snapshot.click({ timeout: 600000 });
   await click("Инициировать расчёт");
-  for (let i = 0; i < 4; i++) {
-    const confirmation = page
-      .getByRole("button", { name: "Выплатить TEST USD", exact: true })
-      .first();
-    await confirmation.click();
-    await page.waitForFunction(
-      () =>
-        document.querySelectorAll(".confirm-button").length === 0 ||
-        !document.querySelector(".confirm-button")?.hasAttribute("disabled"),
-    );
+  const pay = page.getByRole("button", { name: "Выплатить", exact: true });
+  await pay.first().waitFor();
+  while (await pay.count()) {
+    await pay.first().click();
+    await page.waitForFunction(() => !document.querySelector(".pending"));
   }
   await page.waitForFunction(() =>
-    document
-      .querySelector(".action-bottom")
-      ?.textContent?.includes("Исполнено"),
+    document.querySelector(".detail-bar")?.textContent?.includes("Исполнено"),
   );
   await pause(1200);
   await page.evaluate(() => window.scrollTo(0, 0));
 }
 async function schedule(kind, period) {
-  await click("Создать действие");
+  await click("Новое действие");
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("combobox", { name: "Тип действия" }).click();
   await page
     .getByRole("option", {
-      name: ["Купонная выплата", "Погашение облигации", "Частичное погашение"][
-        kind
-      ],
+      name: ["Купон", "Погашение", "Частичное погашение"][kind],
       exact: true,
     })
     .click();
   if (kind === 0) {
     await dialog.getByRole("combobox", { name: "Купонный период" }).click();
     await page
-      .getByRole("option", { name: `Период ${period}`, exact: true })
+      .getByRole("option", { name: new RegExp(`^№${period} `) })
       .click();
   }
   await pause(1000);
-  await click("Запланировать в Solana");
-  await page.waitForFunction(() => !document.querySelector(".modal-backdrop"));
+  await dialog.getByRole("button", { name: "Запланировать", exact: true }).click();
+  await page.waitForFunction(() => !document.querySelector(".overlay"));
   await settle();
 }
 try {
@@ -78,10 +68,11 @@ try {
   await pause(1200);
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: "artifacts/dashboard.png", fullPage: true });
-  await click("Перевести токены");
-  await page.getByLabel("Количество").fill("10");
+  await click("Перевод облигаций");
+  await page.getByLabel("Количество облигаций").fill("10");
   await click("Подписать и перевести");
-  await page.waitForFunction(() => !document.querySelector(".modal-backdrop"));
+  await page.waitForFunction(() => !document.querySelector(".overlay"));
+  await click("Корпоративные действия");
   assert.equal((await state()).holders[0].units, "390");
   await schedule(0, 1);
   console.log("UI: first coupon completed");
@@ -108,11 +99,11 @@ try {
   assert.ok(final.balances.holders.every((h) => h.bonds === "0"));
   assert.ok(final.actions.every((a) => a.status === 4));
   await click("Журнал операций");
-  await page.locator(".journal-row").first().click();
+  await page.locator("tbody tr.clickable").first().click();
   await page.getByRole("dialog", { name: "Транзакция Solana" }).waitFor();
   await pause(2000);
   assert.match(
-    await page.locator(".tx-modal pre").innerText(),
+    await page.locator(".dialog pre.logs").innerText(),
     /Settlement attested/,
   );
   await page.screenshot({
@@ -121,7 +112,7 @@ try {
   });
   await click("Закрыть");
   await click("Кабинет инвестора");
-  await page.getByText("Ваши права. Ваши выплаты.", { exact: true }).waitFor();
+  await page.getByRole("heading", { name: "Кабинет инвестора" }).waitFor();
   await page.screenshot({ path: "artifacts/investor.png", fullPage: true });
   fs.writeFileSync(
     "artifacts/demo-audit.json",
@@ -131,7 +122,7 @@ try {
       2,
     ),
   );
-  await click("Обзор");
+  await click("Обзор выпуска");
   await pause(1500);
   const mobile = await context.newPage();
   await mobile.setViewportSize({ width: 390, height: 844 });
@@ -147,10 +138,9 @@ try {
   await mobile.screenshot({ path: "artifacts/mobile.png", fullPage: true });
   await mobile
     .getByRole("button", { name: "Кабинет инвестора", exact: true })
+    .first()
     .click();
-  await mobile
-    .getByText("Ваши права. Ваши выплаты.", { exact: true })
-    .waitFor();
+  await mobile.getByRole("heading", { name: "Кабинет инвестора" }).waitFor();
   assert.ok(
     await mobile.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
