@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "npm run build:hosted",
+  "outputDirectory": "dist",
+  "functions": { "api/**/*.mjs": { "maxDuration": 30 } },
+  "rewrites": [
+    { "source": "/api/fund", "destination": "/api/action" },
+    { "source": "/api/automation", "destination": "/api/action" },
+    { "source": "/api/drafts/:path*", "destination": "/api/action" },
+    { "source": "/api/wallet/:path*", "destination": "/api/action" },
+    {
+      "source": "/api/transaction/:signature",
+      "destination": "/api/transaction/[signature]"
+    }
+  ]
+}

@@ -32,6 +32,8 @@ export type State = {
   slot: number;
   chainTime: number;
   receivedAt?: number;
+  observedAt?: string;
+  journalStale?: boolean;
   config: {
     state: string;
     programId: string;

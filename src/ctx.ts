@@ -12,6 +12,7 @@ export type Page =
 /** What every issue page receives from the shell. */
 export type Ctx = {
   s: State;
+  readOnly: boolean;
   now: number;
   busy: boolean;
   act(body: object): Promise<boolean>;

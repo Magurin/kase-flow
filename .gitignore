@@ -9,3 +9,9 @@ artifacts/video/
 artifacts/*-debug.png
 artifacts/preview.png
 artifacts/kase-flow-source.zip
+
+.vercel
+.claude/
+.env
+.env.*
+!.env.example

@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
-import { Transaction } from "@solana/web3.js";
+import type { Transaction } from "@solana/web3.js";
 import { Buffer } from "buffer";
-import { ArrowUpRight, CheckCheck, Clock3, ShieldCheck, Wallet } from "lucide-react";
+import {
+  ArrowUpRight,
+  CheckCheck,
+  Clock3,
+  ShieldCheck,
+  Wallet,
+} from "lucide-react";
 import type { Ctx } from "../ctx";
 import { actionTitle, holderName, symbolOf } from "../domain";
 import { money, short, units } from "../format";
@@ -26,9 +32,10 @@ export function Investor(c: Ctx) {
     [busy, setBusy] = useState(false);
   useEffect(() => {
     const w = window as any;
-    const connected: Provider | undefined = [w.phantom?.solana, w.solflare].find(
-      (p) => p?.publicKey,
-    );
+    const connected: Provider | undefined = [
+      w.phantom?.solana,
+      w.solflare,
+    ].find((p) => p?.publicKey);
     if (connected?.publicKey) {
       setProvider(connected);
       setAddress(connected.publicKey.toBase58());
@@ -48,7 +55,8 @@ export function Investor(c: Ctx) {
   }, [provider]);
   async function connect(name: "phantom" | "solflare") {
     const w = window as any;
-    const p: Provider | undefined = name === "phantom" ? w.phantom?.solana : w.solflare;
+    const p: Provider | undefined =
+      name === "phantom" ? w.phantom?.solana : w.solflare;
     if (!p) {
       c.notify(
         `Расширение ${name === "phantom" ? "Phantom" : "Solflare"} не найдено. Откройте страницу в браузере с установленным кошельком.`,
@@ -66,35 +74,58 @@ export function Investor(c: Ctx) {
       setBusy(false);
     }
   }
-  const holder = address ? s.holders.find((h) => h.wallet === address) : s.holders[demo];
+  const holder = address
+    ? s.holders.find((h) => h.wallet === address)
+    : s.holders[demo];
   const balances = holder ? s.balances?.holders[holder.index] : null;
   const rows = holder
     ? s.actions.flatMap((a) =>
-        a.rows.filter((r) => r.holder === holder.index).map((r) => ({ ...r, action: a })),
+        a.rows
+          .filter((r) => r.holder === holder.index)
+          .map((r) => ({ ...r, action: a })),
       )
     : [];
-  const pending = rows.filter((r) => !r.settled).reduce((n, r) => n + BigInt(r.amount), 0n);
-  const paid = rows.filter((r) => r.settled).reduce((n, r) => n + BigInt(r.amount), 0n);
+  const pending = rows
+    .filter((r) => !r.settled)
+    .reduce((n, r) => n + BigInt(r.amount), 0n);
+  const paid = rows
+    .filter((r) => r.settled)
+    .reduce((n, r) => n + BigInt(r.amount), 0n);
   const current = s.actions.at(-1);
   const claimable =
     current &&
     [2, 3].includes(current.status) &&
     current.rows.some((r) => r.holder === holder?.index && !r.settled);
   async function claim() {
+    if (c.readOnly) return;
     if (!holder) return;
     setBusy(true);
     try {
       if (address && provider) {
-        const prepared = await post("wallet/prepare", { wallet: address }, s.config.state);
-        const tx = Transaction.from(Buffer.from(prepared.transaction, "base64"));
+        const { Transaction } = await import("@solana/web3.js");
+        const prepared = await post(
+          "wallet/prepare",
+          { wallet: address },
+          s.config.state,
+        );
+        const tx = Transaction.from(
+          Buffer.from(prepared.transaction, "base64"),
+        );
         const signed = await provider.signTransaction(tx);
         await post(
           "wallet/submit",
-          { id: prepared.id, transaction: Buffer.from(signed.serialize()).toString("base64") },
+          {
+            id: prepared.id,
+            transaction: Buffer.from(signed.serialize()).toString("base64"),
+          },
           s.config.state,
         );
       } else
-        await post("action", { operation: "confirm", holder: holder.index }, s.config.state);
+        await post(
+          "action",
+          { operation: "confirm", holder: holder.index },
+          s.config.state,
+        );
       await c.refresh();
       c.notify("TEST USD зачислены. Выплата записана в программе Solana.");
     } catch (e) {
@@ -118,7 +149,7 @@ export function Investor(c: Ctx) {
         <div className="page-actions">
           <button
             className="btn btn-primary"
-            disabled={busy || !claimable}
+            disabled={c.readOnly || busy || !claimable}
             onClick={claim}
             title={claimable ? undefined : "Нет выплаты, ожидающей получения"}
           >
@@ -131,13 +162,25 @@ export function Investor(c: Ctx) {
       <div className="grid main-side">
         <div className="stack">
           <div className="kpis tight">
-            <Kpi label={`Облигации ${symbolOf(s)}`} value={units(balances?.bonds ?? holder?.units ?? "0")} unit="шт." />
+            <Kpi
+              label={`Облигации ${symbolOf(s)}`}
+              value={units(balances?.bonds ?? holder?.units ?? "0")}
+              unit="шт."
+            />
             <Kpi label="Баланс TEST USD" value={money(balances?.cash ?? "0")} />
-            <Kpi label="К получению" value={money(pending)} tone={pending ? "good" : undefined} />
+            <Kpi
+              label="К получению"
+              value={money(pending)}
+              tone={pending ? "good" : undefined}
+            />
             <Kpi label="Получено всего" value={money(paid)} />
           </div>
           <section className="panel">
-            <PanelHead title="Начисления" count={rows.length} sub="Строки появляются после фиксации реестра" />
+            <PanelHead
+              title="Начисления"
+              count={rows.length}
+              sub="Строки появляются после фиксации реестра"
+            />
             {rows.length ? (
               <div className="table-wrap">
                 <table>
@@ -156,8 +199,14 @@ export function Investor(c: Ctx) {
                         <td className="num">{units(r.units)}</td>
                         <td className="num">{money(r.amount)}</td>
                         <td>
-                          <span className={`badge ${r.settled ? "ok" : r.action.status === 1 ? "" : "info"}`}>
-                            {r.settled ? "Зачислено" : r.action.status === 1 ? "Ожидает расчёта" : "Готово к получению"}
+                          <span
+                            className={`badge ${r.settled ? "ok" : r.action.status === 1 ? "" : "info"}`}
+                          >
+                            {r.settled
+                              ? "Зачислено"
+                              : r.action.status === 1
+                                ? "Ожидает расчёта"
+                                : "Готово к получению"}
                           </span>
                         </td>
                       </tr>
@@ -167,7 +216,10 @@ export function Investor(c: Ctx) {
               </div>
             ) : (
               <Empty icon={<Clock3 size={28} />} title="Начислений пока нет">
-                <p>Они появятся, когда эмитент зафиксирует реестр для купона или погашения.</p>
+                <p>
+                  Они появятся, когда эмитент зафиксирует реестр для купона или
+                  погашения.
+                </p>
               </Empty>
             )}
           </section>
@@ -201,10 +253,18 @@ export function Investor(c: Ctx) {
               ) : (
                 <>
                   <div className="page-actions">
-                    <button className="btn btn-secondary btn-sm" disabled={busy} onClick={() => connect("phantom")}>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      disabled={busy}
+                      onClick={() => connect("phantom")}
+                    >
                       Phantom <ArrowUpRight size={14} />
                     </button>
-                    <button className="btn btn-secondary btn-sm" disabled={busy} onClick={() => connect("solflare")}>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      disabled={busy}
+                      onClick={() => connect("solflare")}
+                    >
                       Solflare <ArrowUpRight size={14} />
                     </button>
                   </div>
@@ -214,7 +274,10 @@ export function Investor(c: Ctx) {
                       label="Тестовый держатель"
                       value={demo}
                       onChange={setDemo}
-                      options={s.holders.map((h) => ({ value: h.index, label: holderName(s, h.index) }))}
+                      options={s.holders.map((h) => ({
+                        value: h.index,
+                        label: holderName(s, h.index),
+                      }))}
                     />
                   </label>
                 </>
@@ -228,10 +291,15 @@ export function Investor(c: Ctx) {
                 <div className="notice info">
                   <Wallet size={16} />
                   <span className="grow">
-                    <b>Кошелька нет в реестре.</b> Создайте тестовый выпуск: этот адрес
-                    получит 100 облигаций.
+                    <b>Кошелька нет в реестре.</b> Создайте тестовый выпуск:
+                    этот адрес получит 100 облигаций.
                     <br />
-                    <button className="btn btn-primary btn-sm" style={{ marginTop: 10 }} disabled={busy} onClick={() => c.newDemo(address!)}>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      style={{ marginTop: 10 }}
+                      disabled={c.readOnly || busy}
+                      onClick={() => c.newDemo(address!)}
+                    >
                       Получить тестовые облигации
                     </button>
                   </span>
@@ -240,9 +308,11 @@ export function Investor(c: Ctx) {
               <div className="notice">
                 <ShieldCheck size={16} />
                 <span>
-                  {address
-                    ? "Подпись запрашивается в вашем кошельке, комиссию оплачивает тестовый эмитент. Приватный ключ не передаётся."
-                    : "Тестовый режим: ключи тестовых держателей хранит локальный сервер, выплату подписывает оператор."}
+                  {c.readOnly
+                    ? "Публичный просмотр балансов и начислений. Получение выплат доступно в локальной доверенной среде."
+                    : address
+                      ? "Подпись запрашивается в вашем кошельке, комиссию оплачивает тестовый эмитент. Приватный ключ не передаётся."
+                      : "Тестовый режим: ключи тестовых держателей хранит локальный сервер, выплату подписывает оператор."}
                 </span>
               </div>
             </div>
@@ -258,7 +328,12 @@ export function Investor(c: Ctx) {
                 ].map(([label, key]) => (
                   <div key={key}>
                     <span>{label}</span>
-                    <a href={explorer("address", key)} target="_blank" rel="noreferrer" className="mono">
+                    <a
+                      href={explorer("address", key)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mono"
+                    >
                       {short(key)} <ArrowUpRight size={12} />
                     </a>
                   </div>

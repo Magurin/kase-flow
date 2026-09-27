@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getJson, ApiError } from "./http";
+import { post } from "./api";
 import {
   CalendarClock,
   CircleHelp,
@@ -46,6 +48,7 @@ const NAV: { page: Page; label: string; icon: typeof Landmark }[] = [
   { page: "registry", label: "Реестр держателей", icon: Users },
   { page: "journal", label: "Журнал операций", icon: FileText },
 ];
+const PUBLIC_PREVIEW = import.meta.env.MODE === "hosted";
 
 export function App({
   issueId,
@@ -62,37 +65,57 @@ export function App({
     [busy, setBusy] = useState(false),
     [toast, setToast] = useState(""),
     [dialog, setDialog] = useState<
-      { type: "action"; kind: number } | { type: "transfer" } | { type: "about" } | null
+      | { type: "action"; kind: number }
+      | { type: "transfer" }
+      | { type: "about" }
+      | null
     >(null),
     [tx, setTx] = useState<any>(null),
     [tick, setTick] = useState(Date.now());
-  // Every request names its instrument; the server default profile is a CLI fallback.
-  const scope = (): Record<string, string> => {
-    const id = s?.config.state || issueId;
-    return id ? { "X-Instrument-ID": id } : {};
-  };
+  const request = useRef<AbortController | null>(null);
   const refresh = useCallback(async () => {
+    request.current?.abort();
+    const controller = new AbortController();
+    request.current = controller;
     try {
-      const r = await fetch("/api/state", {
-        headers: issueId ? { "X-Instrument-ID": issueId } : {},
+      let v;
+      try {
+        v = await getJson(
+          `/api/state${issueId ? `?issue=${encodeURIComponent(issueId)}` : ""}`,
+          controller.signal,
+        );
+      } catch (e) {
+        // A remembered issue may have been removed from the public showcase.
+        if (!(e instanceof ApiError) || e.status !== 404 || !issueId) throw e;
+        v = await getJson("/api/state", controller.signal);
+        if (!controller.signal.aborted) onSelect(v.config.state);
+        return;
+      }
+      if (controller.signal.aborted) return;
+      setS({
+        ...v,
+        receivedAt: v.observedAt ? Date.parse(v.observedAt) : Date.now(),
       });
-      const v = await r.json();
-      if (!r.ok) throw Error(v.error);
-      setS({ ...v, receivedAt: Date.now() });
       setError("");
     } catch (e) {
-      setError((e as Error).message);
+      if (!controller.signal.aborted) setError((e as Error).message);
+    } finally {
+      if (request.current === controller) request.current = null;
     }
-  }, [issueId]);
+  }, [issueId, onSelect]);
   useEffect(() => {
     void refresh();
-    // The API caches chain reads for up to 8 s; poll at half that and keep
-    // countdowns ticking every second on their own.
-    const poll = setInterval(() => void refresh(), 4000);
+    const poll = setInterval(
+      () => {
+        if (!request.current && !document.hidden) void refresh();
+      },
+      PUBLIC_PREVIEW ? 10000 : 4000,
+    );
     const clock = setInterval(() => setTick(Date.now()), 1000);
     return () => {
       clearInterval(poll);
       clearInterval(clock);
+      request.current?.abort();
     };
   }, [refresh]);
   useEffect(() => {
@@ -105,15 +128,15 @@ export function App({
   }, [page]);
 
   async function act(body: object) {
+    if (PUBLIC_PREVIEW) {
+      setToast(
+        "Публичная версия работает только на чтение. Операции доступны в локальном демо.",
+      );
+      return false;
+    }
     setBusy(true);
     try {
-      const r = await fetch("/api/action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...scope() },
-        body: JSON.stringify(body),
-      });
-      const v = await r.json();
-      if (!r.ok) throw Error(v.error);
+      await post("action", body, s?.config.state || issueId);
       setToast("Транзакция подтверждена в Solana");
       await refresh();
       setDialog(null);
@@ -126,15 +149,10 @@ export function App({
     }
   }
   async function newDemo(wallet?: string) {
+    if (PUBLIC_PREVIEW) return;
     setBusy(true);
     try {
-      const r = await fetch("/api/demo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...scope() },
-        body: JSON.stringify({ wallet }),
-      });
-      const v = await r.json();
-      if (!r.ok) throw Error(v.error);
+      const v = await post("demo", { wallet }, s?.config.state || issueId);
       setToast("Создан новый тестовый выпуск");
       if (v.issueId) onSelect(v.issueId);
     } catch (e) {
@@ -146,9 +164,9 @@ export function App({
   async function inspect(signature: string) {
     setBusy(true);
     try {
-      const r = await fetch("/api/transaction/" + signature);
-      const v = await r.json();
-      if (!r.ok) throw Error(v.error);
+      const v = await getJson(
+        "/api/transaction/" + encodeURIComponent(signature),
+      );
       setTx({ signature, ...v });
     } catch (e) {
       setToast((e as Error).message);
@@ -160,15 +178,23 @@ export function App({
   const now = s ? chainNow(s, tick) : Math.floor(tick / 1000);
   const ctx: Ctx | null = s && {
     s,
+    readOnly: PUBLIC_PREVIEW,
     now,
     busy,
     act,
     refresh,
     notify: setToast,
     go: setPage,
-    openAction: (kind = 0) =>
-      setDialog({ type: "action", kind: kind === 0 && allCouponsPaid(s) ? 1 : kind }),
-    openTransfer: () => setDialog({ type: "transfer" }),
+    openAction: (kind = 0) => {
+      if (!PUBLIC_PREVIEW)
+        setDialog({
+          type: "action",
+          kind: kind === 0 && allCouponsPaid(s) ? 1 : kind,
+        });
+    },
+    openTransfer: () => {
+      if (!PUBLIC_PREVIEW) setDialog({ type: "transfer" });
+    },
     inspect,
     newDemo,
   };
@@ -204,10 +230,17 @@ export function App({
             <span className={`dot ${error ? "off" : s ? "" : "idle"}`} />
             <span className="net-label">Solana Devnet</span>
             <small>
-              {error ? "нет связи" : s ? `слот ${units(s.slot)}` : "подключение"}
+              {error
+                ? "нет связи"
+                : s
+                  ? `слот ${units(s.slot)}`
+                  : "подключение"}
             </small>
           </span>
-          <span className="badge warn plain" title="Реальные деньги не используются">
+          <span
+            className="badge warn plain"
+            title="Реальные деньги не используются"
+          >
             Тестовая среда
           </span>
           <button
@@ -218,7 +251,11 @@ export function App({
             <CircleHelp size={15} />
             <span className="label">О прототипе</span>
           </button>
-          <button className="btn btn-sm btn-primary top-investor" onClick={() => setPage("investor")} disabled={!s}>
+          <button
+            className="btn btn-sm btn-primary top-investor"
+            onClick={() => setPage("investor")}
+            disabled={!s}
+          >
             <Wallet size={15} />
             <span className="label">Кабинет инвестора</span>
           </button>
@@ -292,7 +329,9 @@ export function App({
             <button className="issue-switch" onClick={() => setPage("issues")}>
               <span className="row">
                 <span className="ticker-code">{symbolOf(s)}</span>
-                <span className={`badge ${closed ? "" : "ok"}`}>{closed ? "Погашен" : "В обращении"}</span>
+                <span className={`badge ${closed ? "" : "ok"}`}>
+                  {closed ? "Погашен" : "В обращении"}
+                </span>
               </span>
               <b>{nameOf(s)}</b>
               <small>{s.config.metadata?.issuer}</small>
@@ -312,7 +351,9 @@ export function App({
               >
                 <Icon size={17} />
                 {label}
-                {p === "actions" && running && <span className="nav-count">1</span>}
+                {p === "actions" && running && (
+                  <span className="nav-count">1</span>
+                )}
               </button>
             ))}
           </nav>
@@ -340,33 +381,53 @@ export function App({
           </nav>
         </div>
         <div className="side-foot">
-          {s && (
+          {s && !PUBLIC_PREVIEW && (
             <span>
               Автопилот: <b>{s.automation.enabled ? "включён" : "выключен"}</b>
             </span>
           )}
-          <button className="btn btn-ghost" disabled={busy} onClick={() => newDemo()}>
-            <RotateCcw size={14} />
-            Новый демо-выпуск
-          </button>
+          {!PUBLIC_PREVIEW && (
+            <button
+              className="btn btn-ghost"
+              disabled={busy}
+              onClick={() => newDemo()}
+            >
+              <RotateCcw size={14} />
+              Новый демо-выпуск
+            </button>
+          )}
           <span>KASE × Superteam Kazakhstan</span>
         </div>
       </aside>
 
       <main className="main">
+        {PUBLIC_PREVIEW && (
+          <div className="notice info" style={{ marginBottom: 20 }}>
+            <Radio size={16} />
+            <span>
+              <b>Публичный просмотр Devnet.</b> Данные выпусков обновляются из
+              Solana. Создание выпусков и проведение операций доступны только в
+              локальной доверенной среде.
+            </span>
+          </div>
+        )}
         {error && (
           <div className="notice bad" style={{ marginBottom: 20 }}>
             <AlertTriangle size={16} />
             <span className="grow">
               <b>Не удалось обновить данные Solana.</b> {error}
             </span>
-            <button className="btn btn-sm btn-secondary" onClick={() => void refresh()}>
+            <button
+              className="btn btn-sm btn-secondary"
+              onClick={() => void refresh()}
+            >
               Повторить
             </button>
           </div>
         )}
         {page === "issues" ? (
           <Issues
+            readOnly={PUBLIC_PREVIEW}
             activeId={s?.config.state ?? issueId}
             onSelect={(id) => {
               if (id === s?.config.state) setPage("overview");
@@ -396,8 +457,17 @@ export function App({
           )
         )}
         <div className="page-foot" style={{ marginTop: 28 }}>
-          <span>Данные читаются из Solana Devnet с задержкой до 8 секунд. TEST USD не имеет денежного обеспечения.</span>
-          {s && <span className="mono">программа {s.config.programId.slice(0, 8)}…</span>}
+          <span>
+            {error
+              ? "Показаны последние успешно загруженные данные. "
+              : `Обновление Devnet каждые ${PUBLIC_PREVIEW ? "10" : "4"} секунд. `}
+            TEST USD не имеет денежного обеспечения.
+          </span>
+          {s && (
+            <span className="mono">
+              программа {s.config.programId.slice(0, 8)}…
+            </span>
+          )}
         </div>
       </main>
 
@@ -412,9 +482,16 @@ export function App({
         />
       )}
       {dialog?.type === "transfer" && s && (
-        <TransferDialog s={s} busy={busy} onClose={() => setDialog(null)} act={act} />
+        <TransferDialog
+          s={s}
+          busy={busy}
+          onClose={() => setDialog(null)}
+          act={act}
+        />
       )}
-      {dialog?.type === "about" && <AboutDialog s={s} onClose={() => setDialog(null)} />}
+      {dialog?.type === "about" && (
+        <AboutDialog s={s} onClose={() => setDialog(null)} />
+      )}
       {tx && <TxDialog tx={tx} onClose={() => setTx(null)} />}
       {toast && (
         <div className="toast" role="status">

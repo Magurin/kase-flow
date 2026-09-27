@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "concurrently -k \"node server/index.mjs\" \"vite --host 127.0.0.1\"",
     "build": "tsc -b && vite build",
+    "build:hosted": "tsc -b && vite build --mode hosted",
     "start": "node server/index.mjs",
     "chain:build": "cargo build-sbf --manifest-path program/Cargo.toml",
     "test": "node --test --test-concurrency=1 tests/*.test.mjs",
@@ -31,6 +32,7 @@
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "uuid": "11.1.1",
     "ws": "^8.22.0"
   },
   "devDependencies": {
@@ -44,6 +46,7 @@
     "vite": "^6.1.0"
   },
   "overrides": {
+    "uuid": "$uuid",
     "jayson": "5.0.0"
   }
 }

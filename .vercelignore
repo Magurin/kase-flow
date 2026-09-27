@@ -1,0 +1,8 @@
+.local/
+.claude/
+artifacts/
+program/
+tests/
+docs/
+scripts/
+api/public-data.mjs

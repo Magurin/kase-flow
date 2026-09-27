@@ -166,8 +166,8 @@ export function decode(data) {
   s.tokens = { enabled: !!b(), bondMint: key(), cashMint: key(), vault: key() };
   return s;
 }
-export async function state(config = readConfig()) {
-  const info = await connection.getAccountInfo(new PublicKey(config.state));
+export async function state(config = readConfig(), rpc = connection) {
+  const info = await rpc.getAccountInfo(new PublicKey(config.state));
   if (!info || !info.owner.equals(new PublicKey(config.programId)))
     throw new Error("Instrument account unavailable");
   return decode(info.data);
@@ -525,13 +525,13 @@ async function attachTokens(
   await checkpoint(signatures);
   return signatures;
 }
-export async function tokenBalances(config) {
+export async function tokenBalances(config, rpc = connection) {
   if (!config.tokens) return null;
   const t = config.tokens;
   const keys = [t.vault, t.bondMint, ...t.bonds, ...t.cash].map(
     (a) => new PublicKey(a),
   );
-  const infos = await connection.getMultipleAccountsInfo(keys, "confirmed");
+  const infos = await rpc.getMultipleAccountsInfo(keys, "confirmed");
   const vault = unpackAccount(keys[0], infos[0]);
   const mint = unpackMint(keys[1], infos[1], TOKEN_2022_PROGRAM_ID);
   const accounts = infos

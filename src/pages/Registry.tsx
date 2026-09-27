@@ -19,7 +19,9 @@ export function Registry(c: Ctx) {
           ? "Переводы заблокированы до завершения текущего действия"
           : "";
   const rows = s.holders.filter((h) =>
-    `${holderName(s, h.index)} ${h.wallet}`.toLowerCase().includes(query.toLowerCase()),
+    `${holderName(s, h.index)} ${h.wallet}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
   );
   const cash = (i: number) => s.balances?.holders[i]?.cash ?? "0";
   return (
@@ -38,7 +40,7 @@ export function Registry(c: Ctx) {
         <div className="page-actions">
           <button
             className="btn btn-primary"
-            disabled={c.busy || !!locked}
+            disabled={c.readOnly || c.busy || !!locked}
             title={locked || undefined}
             onClick={c.openTransfer}
           >
@@ -54,7 +56,11 @@ export function Registry(c: Ctx) {
         </div>
       )}
       <div className="kpis">
-        <Kpi label="Облигаций в обращении" value={units(s.supply)} unit={symbolOf(s)} />
+        <Kpi
+          label="Облигаций в обращении"
+          value={units(s.supply)}
+          unit={symbolOf(s)}
+        />
         <Kpi label="Погашено" value={units(s.retired)} unit="обл." />
         <Kpi
           label="Держателей с остатком"
@@ -88,7 +94,9 @@ export function Registry(c: Ctx) {
             </thead>
             <tbody>
               {rows.map((h) => {
-                const share = Number(s.supply) ? (Number(h.units) / Number(s.supply)) * 100 : 0;
+                const share = Number(s.supply)
+                  ? (Number(h.units) / Number(s.supply)) * 100
+                  : 0;
                 const name = holderName(s, h.index);
                 return (
                   <tr key={h.wallet}>
@@ -98,7 +106,10 @@ export function Registry(c: Ctx) {
                         <span>
                           {name}
                           <span className="sub">
-                            {s.config.names[h.index] ? "Держатель" : "Внешний кошелёк"} #{h.index + 1}
+                            {s.config.names[h.index]
+                              ? "Держатель"
+                              : "Внешний кошелёк"}{" "}
+                            #{h.index + 1}
                           </span>
                         </span>
                       </div>
@@ -107,20 +118,31 @@ export function Registry(c: Ctx) {
                       <button
                         className="addr"
                         title={h.wallet}
-                        onClick={() => {
-                          void navigator.clipboard.writeText(h.wallet);
-                          c.notify("Адрес скопирован");
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(h.wallet);
+                            c.notify("Адрес скопирован");
+                          } catch {
+                            c.notify(
+                              "Не удалось скопировать адрес. Откройте его в Explorer.",
+                            );
+                          }
                         }}
                       >
                         {short(h.wallet)} <Copy size={12} />
                       </button>
                     </td>
                     <td className="num">{units(h.units)}</td>
-                    <td className="num">{money(BigInt(h.units) * BigInt(s.face))}</td>
+                    <td className="num">
+                      {money(BigInt(h.units) * BigInt(s.face))}
+                    </td>
                     <td className="num">{money(cash(h.index))}</td>
                     <td className="num">
                       <div className="share">
-                        {share.toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%
+                        {share.toLocaleString("ru-RU", {
+                          maximumFractionDigits: 1,
+                        })}
+                        %
                         <span className="bar">
                           <i style={{ width: `${share}%` }} />
                         </span>
@@ -134,10 +156,16 @@ export function Registry(c: Ctx) {
         </div>
         <div className="panel-foot">
           <span>
-            <Fingerprint size={13} style={{ verticalAlign: -2 }} /> Источник: аккаунт программы и счета Token-2022 в Devnet
+            <Fingerprint size={13} style={{ verticalAlign: -2 }} /> Источник:
+            аккаунт программы и счета Token-2022 в Devnet
           </span>
           <span>
-            Реестр {s.balances && s.holders.every((h, i) => h.units === s.balances!.holders[i]?.bonds) ? "совпадает" : "не совпадает"} с балансами токенов
+            Реестр{" "}
+            {s.balances &&
+            s.holders.every((h, i) => h.units === s.balances!.holders[i]?.bonds)
+              ? "совпадает"
+              : "не совпадает"}{" "}
+            с балансами токенов
           </span>
         </div>
       </section>

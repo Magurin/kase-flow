@@ -33,11 +33,17 @@ export function Overview(c: Ctx) {
     .flatMap((a) => a.rows)
     .filter((r) => r.settled)
     .reduce((n, r) => n + BigInt(r.amount), 0n);
-  const coupon = s.holders.reduce((n, h) => n + entitlement(s, h.units, 0, 0), 0n);
+  const coupon = s.holders.reduce(
+    (n, h) => n + entitlement(s, h.units, 0, 0),
+    0n,
+  );
   const obligations =
-    BigInt(s.supply) * BigInt(s.face) + coupon * BigInt(unpaidPeriods(s).length);
+    BigInt(s.supply) * BigInt(s.face) +
+    coupon * BigInt(unpaidPeriods(s).length);
   const escrow = BigInt(s.balances?.escrow ?? 0);
-  const coverage = obligations ? Number((escrow * 1000n) / obligations) / 10 : 100;
+  const coverage = obligations
+    ? Number((escrow * 1000n) / obligations) / 10
+    : 100;
   const next = nextEvent(s, now);
   async function run(path: string, body: object) {
     setWorking(true);
@@ -71,14 +77,14 @@ export function Overview(c: Ctx) {
         <div className="page-actions">
           <button
             className="btn btn-secondary"
-            disabled={busy || closed}
+            disabled={c.readOnly || busy || closed}
             onClick={c.openTransfer}
           >
             Перевод облигаций
           </button>
           <button
             className="btn btn-primary"
-            disabled={busy || active || s.supply === "0"}
+            disabled={c.readOnly || busy || active || s.supply === "0"}
             onClick={() => c.openAction()}
           >
             <Plus size={16} />
@@ -121,7 +127,10 @@ export function Overview(c: Ctx) {
       <div className="grid main-side">
         <div className="stack">
           <section className="panel">
-            <PanelHead title="Параметры выпуска" sub="Записаны в аккаунт программы при размещении" />
+            <PanelHead
+              title="Параметры выпуска"
+              sub="Записаны в аккаунт программы при размещении"
+            />
             <dl className="kv three">
               <div>
                 <dt>Номинал</dt>
@@ -150,7 +159,10 @@ export function Overview(c: Ctx) {
               <div>
                 <dt>Купон на облигацию</dt>
                 <dd>
-                  {money((BigInt(s.face) * BigInt(s.couponBps)) / (10000n * BigInt(s.frequency)))}{" "}
+                  {money(
+                    (BigInt(s.face) * BigInt(s.couponBps)) /
+                      (10000n * BigInt(s.frequency)),
+                  )}{" "}
                   <small>TEST USD</small>
                 </dd>
               </div>
@@ -192,11 +204,17 @@ export function Overview(c: Ctx) {
                       .reverse()
                       .slice(0, 5)
                       .map((a) => (
-                        <tr key={a.id} className="clickable" onClick={() => c.go("actions")}>
+                        <tr
+                          key={a.id}
+                          className="clickable"
+                          onClick={() => c.go("actions")}
+                        >
                           <td className="mono">{actionCode(a)}</td>
                           <td>{actionTitle(a)}</td>
                           <td className="nowrap">{dateTime(a.recordAt)}</td>
-                          <td className="num">{a.rows.length ? money(actionSum(a)) : "-"}</td>
+                          <td className="num">
+                            {a.rows.length ? money(actionSum(a)) : "-"}
+                          </td>
                           <td>
                             <Status status={a.status} />
                           </td>
@@ -234,7 +252,7 @@ export function Overview(c: Ctx) {
               {next.step && (
                 <button
                   className="btn btn-primary btn-block"
-                  disabled={busy}
+                  disabled={c.readOnly || busy}
                   onClick={() =>
                     next.step === "snapshot"
                       ? c.act({ operation: "snapshot" })
@@ -264,7 +282,11 @@ export function Overview(c: Ctx) {
               sub="Исполняет наступившие купоны и погашение по времени сети"
             >
               <span className={`badge ${s.automation.enabled ? "ok" : ""}`}>
-                {s.automation.enabled ? "Включён" : "Выключен"}
+                {c.readOnly
+                  ? "Локальный режим"
+                  : s.automation.enabled
+                    ? "Включён"
+                    : "Выключен"}
               </span>
             </PanelHead>
             <div className="panel-body stack" style={{ gap: 12 }}>
@@ -278,24 +300,34 @@ export function Overview(c: Ctx) {
                 <div>
                   <span>Последний шаг</span>
                   <b>
-                    {s.automation.lastRun
-                      ? new Date(s.automation.lastRun).toLocaleString("ru-RU")
-                      : "не выполнялся"}
+                    {c.readOnly
+                      ? "Нет доступа к локальному расписанию"
+                      : s.automation.lastRun
+                        ? new Date(s.automation.lastRun).toLocaleString("ru-RU")
+                        : "не выполнялся"}
                   </b>
                 </div>
               </div>
               <div className="page-actions">
                 <button
                   className={`btn btn-sm ${s.automation.enabled ? "btn-secondary" : "btn-primary"}`}
-                  disabled={working || busy || !s.tokens?.enabled || closed}
-                  onClick={() => run("automation", { enabled: !s.automation.enabled })}
+                  disabled={
+                    c.readOnly ||
+                    working ||
+                    busy ||
+                    !s.tokens?.enabled ||
+                    closed
+                  }
+                  onClick={() =>
+                    run("automation", { enabled: !s.automation.enabled })
+                  }
                 >
                   <Power size={14} />
                   {s.automation.enabled ? "Выключить" : "Включить"}
                 </button>
                 <button
                   className="btn btn-sm btn-secondary"
-                  disabled={working || busy || closed}
+                  disabled={c.readOnly || working || busy || closed}
                   onClick={() => run("fund", {})}
                 >
                   Пополнить escrow на 100 000
@@ -316,7 +348,12 @@ export function Overview(c: Ctx) {
                 ].map(([label, key]) => (
                   <div key={key}>
                     <span>{label}</span>
-                    <a href={explorer("address", key)} target="_blank" rel="noreferrer" className="mono">
+                    <a
+                      href={explorer("address", key)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mono"
+                    >
                       {short(key)} <ArrowUpRight size={12} />
                     </a>
                   </div>
@@ -345,15 +382,22 @@ export function Overview(c: Ctx) {
             </thead>
             <tbody>
               {holders.slice(0, 5).map((h) => {
-                const share = Number(s.supply) ? (Number(h.units) / Number(s.supply)) * 100 : 0;
+                const share = Number(s.supply)
+                  ? (Number(h.units) / Number(s.supply)) * 100
+                  : 0;
                 return (
                   <tr key={h.wallet}>
                     <td>{holderName(s, h.index)}</td>
                     <td className="num">{units(h.units)}</td>
-                    <td className="num">{money(BigInt(h.units) * BigInt(s.face))}</td>
+                    <td className="num">
+                      {money(BigInt(h.units) * BigInt(s.face))}
+                    </td>
                     <td className="num">
                       <div className="share">
-                        {share.toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%
+                        {share.toLocaleString("ru-RU", {
+                          maximumFractionDigits: 1,
+                        })}
+                        %
                         <span className="bar">
                           <i style={{ width: `${share}%` }} />
                         </span>

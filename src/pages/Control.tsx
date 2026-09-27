@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { AlertTriangle, CheckCircle2, Download, RefreshCw, Undo2 } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Download,
+  RefreshCw,
+  Undo2,
+} from "lucide-react";
 import type { Ctx } from "../ctx";
 import {
   actionTitle,
@@ -19,14 +25,21 @@ export function Control(c: Ctx) {
   const [busy, setBusy] = useState(false);
   const active = s.actions.at(-1);
   const running = !!active && active.status < 4;
-  const coupon = s.holders.reduce((n, h) => n + entitlement(s, h.units, 0, 0), 0n);
+  const coupon = s.holders.reduce(
+    (n, h) => n + entitlement(s, h.units, 0, 0),
+    0n,
+  );
   const unpaid = unpaidPeriods(s);
   const partlyPaid =
     running && active.kind === 0
-      ? active.rows.filter((r) => r.settled).reduce((n, r) => n + BigInt(r.amount), 0n)
+      ? active.rows
+          .filter((r) => r.settled)
+          .reduce((n, r) => n + BigInt(r.amount), 0n)
       : 0n;
   const forecast =
-    BigInt(s.supply) * BigInt(s.face) + coupon * BigInt(unpaid.length) - partlyPaid;
+    BigInt(s.supply) * BigInt(s.face) +
+    coupon * BigInt(unpaid.length) -
+    partlyPaid;
   const escrow = BigInt(s.balances?.escrow ?? 0);
   const missing = forecast > escrow ? forecast - escrow : 0n;
   const registry = s.holders.reduce((n, h) => n + BigInt(h.units), 0n);
@@ -35,7 +48,10 @@ export function Control(c: Ctx) {
     s.balances.holders.length === s.holders.length &&
     s.holders.every((h, i) => h.units === s.balances!.holders[i].bonds);
   const checks = [
-    ["Реестр программы равен объёму в обращении", registry === BigInt(s.supply)],
+    [
+      "Реестр программы равен объёму в обращении",
+      registry === BigInt(s.supply),
+    ],
     ["Mint supply равен объёму в обращении", s.balances?.supply === s.supply],
     ["Балансы счетов Token-2022 совпадают с реестром", accountsMatch],
     ["Escrow покрывает оставшиеся обязательства", missing === 0n],
@@ -80,7 +96,12 @@ export function Control(c: Ctx) {
       </div>
 
       <div className="kpis">
-        <Kpi label="Оставшиеся обязательства" value={money(forecast)} unit="TEST USD" note="По текущему объёму, без будущих переводов" />
+        <Kpi
+          label="Оставшиеся обязательства"
+          value={money(forecast)}
+          unit="TEST USD"
+          note="По текущему объёму, без будущих переводов"
+        />
         <Kpi label="Остаток escrow" value={money(escrow)} unit="TEST USD" />
         <Kpi
           label={missing ? "Не хватает" : "Запас после исполнения"}
@@ -88,12 +109,18 @@ export function Control(c: Ctx) {
           unit="TEST USD"
           tone={missing ? "bad" : "good"}
         />
-        <Kpi label="Купонов осталось" value={`${unpaid.length} из ${s.periods}`} />
+        <Kpi
+          label="Купонов осталось"
+          value={`${unpaid.length} из ${s.periods}`}
+        />
       </div>
 
       <div className="grid main-side">
         <section className="panel">
-          <PanelHead title="График обязательств" sub="Плановые даты по времени сети Devnet" />
+          <PanelHead
+            title="График обязательств"
+            sub="Плановые даты по времени сети Devnet"
+          />
           <div className="table-wrap">
             <table>
               <thead>
@@ -108,17 +135,34 @@ export function Control(c: Ctx) {
                 {Array.from({ length: s.periods }, (_, i) => i + 1).map((p) => {
                   const due = dueOf(s, p),
                     paid = couponPaid(s, p),
-                    action = s.actions.find((a) => a.kind === 0 && a.period === p);
+                    action = s.actions.find(
+                      (a) => a.kind === 0 && a.period === p,
+                    );
                   return (
                     <tr key={p}>
                       <td>Купон №{p}</td>
                       <td className="nowrap">{dateTime(due)}</td>
                       <td className="num">
-                        {money(action?.rows.length ? action.rows.reduce((n, r) => n + BigInt(r.amount), 0n) : coupon)}
+                        {money(
+                          action?.rows.length
+                            ? action.rows.reduce(
+                                (n, r) => n + BigInt(r.amount),
+                                0n,
+                              )
+                            : coupon,
+                        )}
                       </td>
                       <td>
-                        <span className={`badge ${paid ? "ok" : action ? "info" : due <= now ? "warn" : ""}`}>
-                          {paid ? "Выплачен" : action ? "В работе" : due <= now ? "Срок наступил" : "Запланирован"}
+                        <span
+                          className={`badge ${paid ? "ok" : action ? "info" : due <= now ? "warn" : ""}`}
+                        >
+                          {paid
+                            ? "Выплачен"
+                            : action
+                              ? "В работе"
+                              : due <= now
+                                ? "Срок наступил"
+                                : "Запланирован"}
                         </span>
                       </td>
                     </tr>
@@ -129,10 +173,16 @@ export function Control(c: Ctx) {
                     <td>{actionTitle(a)}</td>
                     <td className="nowrap">{dateTime(a.recordAt)}</td>
                     <td className="num">
-                      {a.rows.length ? money(a.rows.reduce((n, r) => n + BigInt(r.amount), 0n)) : "после фиксации"}
+                      {a.rows.length
+                        ? money(
+                            a.rows.reduce((n, r) => n + BigInt(r.amount), 0n),
+                          )
+                        : "после фиксации"}
                     </td>
                     <td>
-                      <span className={`badge ${a.status === 4 ? "ok" : "info"}`}>
+                      <span
+                        className={`badge ${a.status === 4 ? "ok" : "info"}`}
+                      >
                         {a.status === 4 ? "Исполнено" : "В работе"}
                       </span>
                     </td>
@@ -144,13 +194,22 @@ export function Control(c: Ctx) {
                   <td className="num">
                     {money(
                       redemption?.rows.length
-                        ? redemption.rows.reduce((n, r) => n + BigInt(r.amount), 0n)
+                        ? redemption.rows.reduce(
+                            (n, r) => n + BigInt(r.amount),
+                            0n,
+                          )
                         : BigInt(s.supply) * BigInt(s.face),
                     )}
                   </td>
                   <td>
-                    <span className={`badge ${closed ? "ok" : unpaid.length ? "" : "warn"}`}>
-                      {closed ? "Погашен" : unpaid.length ? "После купонов" : "Ожидает исполнения"}
+                    <span
+                      className={`badge ${closed ? "ok" : unpaid.length ? "" : "warn"}`}
+                    >
+                      {closed
+                        ? "Погашен"
+                        : unpaid.length
+                          ? "После купонов"
+                          : "Ожидает исполнения"}
                     </span>
                   </td>
                 </tr>
@@ -163,7 +222,11 @@ export function Control(c: Ctx) {
           <section className="panel">
             <PanelHead title="Исполнение">
               <span className={`badge ${s.automation.enabled ? "ok" : ""}`}>
-                {s.automation.enabled ? "Автопилот" : "Вручную"}
+                {c.readOnly
+                  ? "Локальный режим"
+                  : s.automation.enabled
+                    ? "Автопилот"
+                    : "Вручную"}
               </span>
             </PanelHead>
             <div className="panel-body stack" style={{ gap: 12 }}>
@@ -172,7 +235,12 @@ export function Control(c: Ctx) {
                   <span>Текущий шаг</span>
                   <b>
                     {running
-                      ? ["Ожидание даты фиксации", "Инициация расчёта", "Выплаты держателям", "Оставшиеся выплаты"][active.status]
+                      ? [
+                          "Ожидание даты фиксации",
+                          "Инициация расчёта",
+                          "Выплаты держателям",
+                          "Оставшиеся выплаты",
+                        ][active.status]
                       : closed
                         ? "Обязательства исполнены"
                         : "Ожидание следующего события"}
@@ -181,9 +249,11 @@ export function Control(c: Ctx) {
                 <div>
                   <span>Последний шаг автопилота</span>
                   <b>
-                    {s.automation.lastRun
-                      ? new Date(s.automation.lastRun).toLocaleString("ru-RU")
-                      : "не выполнялся"}
+                    {c.readOnly
+                      ? "Нет доступа к локальному расписанию"
+                      : s.automation.lastRun
+                        ? new Date(s.automation.lastRun).toLocaleString("ru-RU")
+                        : "не выполнялся"}
                   </b>
                 </div>
               </div>
@@ -199,8 +269,14 @@ export function Control(c: Ctx) {
               {s.automation.error && (
                 <button
                   className="btn btn-secondary btn-sm"
-                  disabled={busy}
-                  onClick={() => call("automation", { enabled: true }, "Автопилот продолжит с первого незавершённого шага")}
+                  disabled={c.readOnly || busy}
+                  onClick={() =>
+                    call(
+                      "automation",
+                      { enabled: true },
+                      "Автопилот продолжит с первого незавершённого шага",
+                    )
+                  }
                 >
                   <RefreshCw size={14} /> Повторить шаг
                 </button>
@@ -208,7 +284,7 @@ export function Control(c: Ctx) {
               {!closed && (
                 <button
                   className="btn btn-primary btn-sm"
-                  disabled={running || c.busy}
+                  disabled={c.readOnly || running || c.busy}
                   onClick={() => c.openAction(unpaid.length ? 0 : 1)}
                 >
                   Подготовить следующее действие
@@ -217,13 +293,20 @@ export function Control(c: Ctx) {
             </div>
           </section>
           <section className="panel">
-            <PanelHead title={closed ? "Закрытие выпуска" : "Сверка"} sub="Программа и счета токенов в Devnet" />
+            <PanelHead
+              title={closed ? "Закрытие выпуска" : "Сверка"}
+              sub="Программа и счета токенов в Devnet"
+            />
             <div className="panel-body rows">
               {checks.map(([label, ok]) => (
                 <div key={label}>
                   <span>{label}</span>
                   <b className={ok ? "up" : "down"}>
-                    {ok ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+                    {ok ? (
+                      <CheckCircle2 size={16} />
+                    ) : (
+                      <AlertTriangle size={16} />
+                    )}
                   </b>
                 </div>
               ))}
@@ -236,8 +319,14 @@ export function Control(c: Ctx) {
                 </span>
                 <button
                   className="btn btn-sm btn-primary"
-                  disabled={busy}
-                  onClick={() => call("action", { operation: "withdraw" }, "Остаток escrow возвращён эмитенту")}
+                  disabled={c.readOnly || busy}
+                  onClick={() =>
+                    call(
+                      "action",
+                      { operation: "withdraw" },
+                      "Остаток escrow возвращён эмитенту",
+                    )
+                  }
                 >
                   <Undo2 size={14} /> Вернуть эмитенту
                 </button>
@@ -246,15 +335,23 @@ export function Control(c: Ctx) {
           </section>
           {s.config.metadata?.termsHash && (
             <section className="panel">
-              <PanelHead title="Утверждённые условия" sub="Отпечаток SHA-256, хранится вне сети" />
+              <PanelHead
+                title="Утверждённые условия"
+                sub="Отпечаток SHA-256, хранится вне сети"
+              />
               <div className="panel-body">
-                <code style={{ wordBreak: "break-all" }}>{s.config.metadata.termsHash}</code>
+                <code style={{ wordBreak: "break-all" }}>
+                  {s.config.metadata.termsHash}
+                </code>
               </div>
             </section>
           )}
         </div>
       </div>
-      <p className="hint">Размещено {units(BigInt(s.supply) + BigInt(s.retired))} облигаций, погашено {units(s.retired)}.</p>
+      <p className="hint">
+        Размещено {units(BigInt(s.supply) + BigInt(s.retired))} облигаций,
+        погашено {units(s.retired)}.
+      </p>
     </div>
   );
 }

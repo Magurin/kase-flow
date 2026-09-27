@@ -16,8 +16,8 @@ export function Journal(c: Ctx) {
           </div>
           <h1>Журнал операций</h1>
           <p className="page-sub">
-            Каждая запись - подтверждённая транзакция Solana. Откройте строку, чтобы
-            проверить журнал программы через RPC.
+            Каждая запись - подтверждённая транзакция Solana. Откройте строку,
+            чтобы проверить журнал программы через RPC.
           </p>
         </div>
         <div className="page-actions">
@@ -44,7 +44,12 @@ export function Journal(c: Ctx) {
               <div key={label}>
                 <dt>{label}</dt>
                 <dd>
-                  <a href={explorer("address", v!)} target="_blank" rel="noreferrer" className="mono">
+                  <a
+                    href={explorer("address", v!)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mono"
+                  >
                     {short(v!)} <ArrowUpRight size={12} />
                   </a>
                 </dd>
@@ -54,6 +59,12 @@ export function Journal(c: Ctx) {
       </section>
       <section className="panel">
         <PanelHead title="Транзакции" count={s.journal.length} />
+        {s.journalStale && (
+          <div className="notice warn">
+            История RPC временно недоступна. Показаны сохранённые подтверждённые
+            операции.
+          </div>
+        )}
         {s.journal.length ? (
           <div className="table-wrap">
             <table>
@@ -68,10 +79,25 @@ export function Journal(c: Ctx) {
               </thead>
               <tbody>
                 {s.journal.map((j) => (
-                  <tr key={j.signature} className="clickable" onClick={() => c.inspect(j.signature)}>
+                  <tr
+                    key={j.signature}
+                    className="clickable"
+                    onClick={() => c.inspect(j.signature)}
+                  >
                     <td style={{ whiteSpace: "nowrap" }}>{isoTime(j.time)}</td>
                     <td>{JOURNAL[j.type] ?? j.label ?? j.type}</td>
-                    <td className="mono">{short(j.signature)}</td>
+                    <td className="mono">
+                      <button
+                        className="btn btn-ghost"
+                        aria-label={`Открыть транзакцию ${j.signature}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          c.inspect(j.signature);
+                        }}
+                      >
+                        {short(j.signature)}
+                      </button>
+                    </td>
                     <td>
                       <span className="badge ok">Подтверждена</span>
                     </td>

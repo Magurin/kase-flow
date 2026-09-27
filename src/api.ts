@@ -1,4 +1,5 @@
-/** POST to the loopback API, scoped to one instrument when given. */
+import { readJson } from "./http";
+/** Mutations are never retried automatically: their chain outcome may be ambiguous. */
 export async function post(path: string, body: object = {}, issueId?: string) {
   const r = await fetch(`/api/${path}`, {
     method: "POST",
@@ -8,9 +9,7 @@ export async function post(path: string, body: object = {}, issueId?: string) {
     },
     body: JSON.stringify(body),
   });
-  const result = await r.json();
-  if (!r.ok) throw Error(result.error || "Запрос не выполнен");
-  return result;
+  return readJson(r);
 }
 export const explorer = (kind: "tx" | "address", id: string) =>
   `https://explorer.solana.com/${kind}/${id}?cluster=devnet`;
