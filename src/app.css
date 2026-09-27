@@ -1586,3 +1586,39 @@ details p {
     font-size: 17px;
   }
 }
+@media (max-width: 640px) {
+  .kpis,
+  .kpis.tight {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .kpi {
+    padding: 12px 14px;
+    border-right: 1px solid var(--line);
+  }
+  .kpi:nth-child(2n) {
+    border-right: 0;
+  }
+  .kpi strong {
+    font-size: 17px;
+    white-space: normal;
+  }
+  .table-wrap table {
+    min-width: 600px;
+  }
+  .panel-head,
+  .panel-body,
+  .kv > div,
+  .detail-head,
+  .detail-bar {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .kv.three,
+  .kv {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+td.mono {
+  white-space: nowrap;
+}

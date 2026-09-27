@@ -210,7 +210,11 @@ export function App({
           <span className="badge warn plain" title="Реальные деньги не используются">
             Тестовая среда
           </span>
-          <button className="btn btn-sm btn-secondary" onClick={() => setDialog({ type: "about" })}>
+          <button
+            className="btn btn-sm btn-secondary"
+            aria-label="О прототипе"
+            onClick={() => setDialog({ type: "about" })}
+          >
             <CircleHelp size={15} />
             <span className="label">О прототипе</span>
           </button>
