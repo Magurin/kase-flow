@@ -1,0 +1,13 @@
+{
+  "network": "devnet",
+  "state": "DX5mmS9TDH3hMRivxtHxriRTzKfRgGXxgsXhGSnPNTtT",
+  "program": "4r48EMFeGkNMyrhEvoZgkmQJrdW9VjaatRpH9y677nq1",
+  "checks": [
+    "Devnet default at 5173",
+    "no network selector",
+    "no clock controls or endpoint",
+    "Explorer link",
+    "mobile width 390",
+    "no browser errors"
+  ]
+}

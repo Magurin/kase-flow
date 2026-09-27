@@ -1,0 +1,684 @@
+{
+  "checkedAt": "2026-09-27T00:01:07.319Z",
+  "issueId": "GVEUtuhwcsfqGieZnodcq41f1Wf5Dj4L8pQkZspDMEiL",
+  "draftId": "0d46e6bd-238f-4937-872f-792333231795",
+  "originalIssue": "2aa9UdGPVqtD8msUvoZVdk7VMjTxDnSPyd12QhXeYjbp",
+  "checks": [
+    "custom terms",
+    "per-holder integer rounding",
+    "scoped transfer keys",
+    "partial burn",
+    "automatic coupon",
+    "automatic final redemption",
+    "other issue unchanged",
+    "versioned terms export"
+  ],
+  "state": {
+    "initialized": true,
+    "authority": "6u5MSR3QDZ4u6LyoiJ32esP6bSMvYfiRWhSSKmdo8kte",
+    "face": "123456789",
+    "couponBps": 750,
+    "frequency": 4,
+    "periods": 1,
+    "issuedAt": 1790466838,
+    "maturity": 1790467137,
+    "supply": "0",
+    "retired": "30",
+    "couponMask": "2",
+    "holders": [
+      {
+        "index": 0,
+        "wallet": "dU96eekU6siaa7KqXT4QaDLmav69ADRynhPTcjEHZj7",
+        "units": "0"
+      },
+      {
+        "index": 1,
+        "wallet": "4XayZGD8oiRzat19LALmFMrKniGLtKYf1Lr5Gu6sU5X4",
+        "units": "0"
+      }
+    ],
+    "actions": [
+      {
+        "id": 1,
+        "kind": 2,
+        "period": 0,
+        "bps": 2000,
+        "recordAt": 1790466867,
+        "snapshotSlot": "504585776",
+        "status": 4,
+        "rows": [
+          {
+            "holder": 0,
+            "units": "9",
+            "retireUnits": "1",
+            "amount": "123456789",
+            "settled": true
+          },
+          {
+            "holder": 1,
+            "units": "21",
+            "retireUnits": "4",
+            "amount": "493827156",
+            "settled": true
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "kind": 0,
+        "period": 1,
+        "bps": 0,
+        "recordAt": 1790467173,
+        "snapshotSlot": "504587103",
+        "status": 4,
+        "rows": [
+          {
+            "holder": 0,
+            "units": "8",
+            "retireUnits": "0",
+            "amount": "18518518",
+            "settled": true
+          },
+          {
+            "holder": 1,
+            "units": "17",
+            "retireUnits": "0",
+            "amount": "39351851",
+            "settled": true
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "kind": 1,
+        "period": 0,
+        "bps": 10000,
+        "recordAt": 1790467242,
+        "snapshotSlot": "504587415",
+        "status": 4,
+        "rows": [
+          {
+            "holder": 0,
+            "units": "8",
+            "retireUnits": "8",
+            "amount": "987654312",
+            "settled": true
+          },
+          {
+            "holder": 1,
+            "units": "17",
+            "retireUnits": "17",
+            "amount": "2098765413",
+            "settled": true
+          }
+        ]
+      }
+    ],
+    "tokens": {
+      "enabled": true,
+      "bondMint": "BQoAdmp1HDuZJe94XQdf6y9jg6SJ7UbKvLpyLVEDACmY",
+      "cashMint": "5j5MUHKE63mcejpWfhcdR9DUrbcSsdBeJSaKh5SmZyXA",
+      "vault": "F3QfiLg1pGKgyE4f8gYMr2Do6sVpC5VtcD7412tcskvC"
+    },
+    "config": {
+      "programId": "4r48EMFeGkNMyrhEvoZgkmQJrdW9VjaatRpH9y677nq1",
+      "state": "GVEUtuhwcsfqGieZnodcq41f1Wf5Dj4L8pQkZspDMEiL",
+      "network": "devnet",
+      "rpc": "https://api.devnet.solana.com",
+      "createdAt": "2026-09-26T23:53:57.916Z",
+      "names": [
+        "QA Investor A",
+        "QA Investor B"
+      ],
+      "metadata": {
+        "issuer": "KASE Flow QA",
+        "name": "Проверка полного цикла — серия 02",
+        "symbol": "QA.02",
+        "draftId": "0d46e6bd-238f-4937-872f-792333231795",
+        "termsHash": "94656e0b24ff1bd3dc9f818eaa806090ff03a3e8c40fccbdda5abf5e0c14bd17",
+        "document": "Devnet verification: custom terms, multi-issue isolation, transfer, partial redemption, coupon and final redemption."
+      },
+      "wallets": [
+        "dU96eekU6siaa7KqXT4QaDLmav69ADRynhPTcjEHZj7",
+        "4XayZGD8oiRzat19LALmFMrKniGLtKYf1Lr5Gu6sU5X4"
+      ],
+      "externalWallet": null,
+      "tokens": {
+        "bondMint": "BQoAdmp1HDuZJe94XQdf6y9jg6SJ7UbKvLpyLVEDACmY",
+        "cashMint": "5j5MUHKE63mcejpWfhcdR9DUrbcSsdBeJSaKh5SmZyXA",
+        "vault": "F3QfiLg1pGKgyE4f8gYMr2Do6sVpC5VtcD7412tcskvC",
+        "bonds": [
+          "Ap2BLwmYzSdbdHFWj32VXxTnWdrkJbYoYQPdtM6egm4o",
+          "H82w8ZLYSow6QpuFzCUPTpzmZjGVZdyPk55LpBdg2qjb"
+        ],
+        "cash": [
+          "4v8foDFEggBcAqLwszQu71QkSutRHkqW9JHymhgJ3AHu",
+          "DUuBELJkwf1ti7JW26zomnegdyQaPbM7cVkLq4e3nF6r"
+        ]
+      }
+    },
+    "slot": 504587489,
+    "chainTime": 1790467264,
+    "journal": [
+      {
+        "type": "Auto payment",
+        "signature": "5vFrEpUiXtRcYDrhUzkZH3H76E4De73qDFsXBzMeRMNCMSyefZZRXFao5vjpjqb4ToNcxLxEyZSRHFzCSmPTJq4B",
+        "time": "2026-09-27T00:01:04.235Z"
+      },
+      {
+        "type": "Auto payment",
+        "signature": "43XQdjvrjZPyxyryo77z9kN9bs8xDJmeYR8TrsCV9czE2hwdhzLtgCttXErUwvcuxKV7k8sZahQ1KWeUVqEM6EmN",
+        "time": "2026-09-27T00:00:59.071Z"
+      },
+      {
+        "type": "Auto initiate",
+        "signature": "3sKGxQndj8sw2BUhR3o7Gp31fytJoog5vWePF9X4aVkQ7s1JCE4D9BUaMxEvDWuZdDguxpnASBNL1HQiBAMmp3gH",
+        "time": "2026-09-27T00:00:53.838Z"
+      },
+      {
+        "type": "Auto snapshot",
+        "signature": "5cJGWePgvEzANksHYcHZuo5vQVjNe5wi9KHnexHbrPQCsQmqDZ9r87HTM9SHneA6tHuipxwAVWT9ucPv91gAtNAY",
+        "time": "2026-09-27T00:00:48.283Z"
+      },
+      {
+        "type": "Auto redemption scheduled",
+        "signature": "5RBwbCEPJbQugi4EdSG1UzUtDjwn9gp4SKAG7JKiSHqBbhsggqo9bF8whDkNfdHcEPrjJGFHd3ht57V2NYiG5eBV",
+        "time": "2026-09-27T00:00:15.279Z"
+      },
+      {
+        "type": "Auto payment",
+        "signature": "2gUHSctW9Xdrqkk6ThPqwujxn6gCFHoHY1MpD7UgAJidS5UmPL1yG4vhhmk3vjMJgb7ztFB6epFrLQmd8rWgjNYv",
+        "time": "2026-09-27T00:00:08.479Z"
+      },
+      {
+        "type": "Auto payment",
+        "signature": "2Tczy4kh7AxuVc34fXRsxTh6izxvL6TTB3hNxaCmWUkjJKcFHcWDXCpSvTVjk6Kv4ThZ1WHhoBgE6VQZE9XmTepV",
+        "time": "2026-09-26T23:59:53.329Z"
+      },
+      {
+        "type": "Auto initiate",
+        "signature": "osvzEh815UcSVEDkGfcbjBD9Rpbv64wssF5sdy6F2yiJiqvPV8T9oVZ4BBjFoswoTPo5etncYJG7rfYq7sqE2YH",
+        "time": "2026-09-26T23:59:46.353Z"
+      },
+      {
+        "type": "Auto snapshot",
+        "signature": "MNLuLfeigibYM5HdQXZBtZq3C5M7Qh8u2EL4Hqm6ZFZF3YrCDnSWQXkr6xhRe28es6FHwP9eG2xgtq11tRhy7UB",
+        "time": "2026-09-26T23:59:39.279Z"
+      },
+      {
+        "type": "Auto coupon scheduled",
+        "signature": "39HAi3Rztg95nEFtssdgHSUm9Zvr8KUY9t6AAGQm5eL57o3HYMuvLHUa83ujA69RwBsbN3iusVfEk3eLKR1NhAPz",
+        "time": "2026-09-26T23:59:10.491Z"
+      },
+      {
+        "type": "confirm",
+        "signature": "5hPW2EtTicaXvVsdz8k5aCjYp3yYdWBmLJGsnKQ81eSE45BeQGitB9aWqxb4mAwovKNxcrb84FPMzi89N2Gi59os",
+        "time": "2026-09-26T23:54:33.797Z",
+        "holder": 1
+      },
+      {
+        "type": "confirm",
+        "signature": "e23D77czC5pKv2WbfhUSFXNjjCnxkbRGjUPYXnkdwe2sfmyXs7BZCkL3P8bDC1RB8XWorefVynhfBm47srUUvCE",
+        "time": "2026-09-26T23:54:32.704Z",
+        "holder": 0
+      },
+      {
+        "type": "initiate",
+        "signature": "3LP8BZJcugBenP1oXw2WXhd73MD4B2E8w8GMKQpWFFkmwNXAagP4dfwad7fDcoqQy9eFcYLgg9htKJbHWWHtPKAH",
+        "time": "2026-09-26T23:54:31.441Z"
+      },
+      {
+        "type": "snapshot",
+        "signature": "egatmTcHKHck4oa3BFj55j1K8pFSaej1nvyMNhriTTR8pw57NjendqgV3C3Fd5yULmXDJPb4EVqbesG9CHzK4sp",
+        "time": "2026-09-26T23:54:30.375Z"
+      },
+      {
+        "type": "schedule",
+        "signature": "5ZhAUac5pRTatGrxi3EnPJDTHW1Dx1kbJqa5wS8NhQ1YrB2EeYTreN34DmkqTiZ58xSyLF93hnpVEkSDHs7pTHGW",
+        "time": "2026-09-26T23:54:18.628Z"
+      },
+      {
+        "type": "transfer",
+        "signature": "57dv6pYSitfkywrKw2PrTLvs83shhMLGM836vReKwUNtwQkYdGti5WrHDuBtkrcvXwLYpKP9vbUFwQgXFchW2x3b",
+        "time": "2026-09-26T23:54:17.287Z"
+      },
+      {
+        "type": "Instrument setup",
+        "signature": "5wkDNFMR38PbFDy7Cs9JrXPW2T8PXKfd6NVKrGdBWYHzXGoctAC5ns9o8xvZPE6cSM1bgmLQ5C7kFqveE9SPcHbP",
+        "time": "2026-09-26T23:54:14.730Z"
+      },
+      {
+        "type": "Instrument setup",
+        "signature": "cU4azb4Ygu8bLoE5vxju3sVo2LUuxDwoUuCaG5a2t9xFWW44Sybn7uWFqhT5NqWUDF1RUimJS3FmqTTLMLUnbvj",
+        "time": "2026-09-26T23:54:14.730Z"
+      },
+      {
+        "type": "Instrument setup",
+        "signature": "3Squ3cK8bLHTFakhRzsGM2epvMEnbjhfWWQ4Se8tMhsrLTnCEeH5a31W4QvXrXKCNdS5aK373YTGjd69KUY2E3C9",
+        "time": "2026-09-26T23:54:14.730Z"
+      },
+      {
+        "type": "Instrument setup",
+        "signature": "786HiZjup6Bw9ZF7LpBwtn7VZrFa9Vmy4HMWou9ErgKCXWTLNwpM29cSaHensRMJyTWtbARDZQArZoHQ5nSu4dX",
+        "time": "2026-09-26T23:54:14.730Z"
+      },
+      {
+        "type": "Instrument setup",
+        "signature": "33vXKdZb3npNnP4MJXVpv7yvczPmuxj4sxkT71hxAkcMczM7Z7JQcptYjPFHPuc1FKc1HPHvaPMeHNWYLPiUsYsz",
+        "time": "2026-09-26T23:54:14.730Z"
+      },
+      {
+        "type": "Instrument setup",
+        "signature": "2JqPuh4ryDizdGkBiBd2ASqvJocgwhQjQSpjsyNc5wQRCWXERW33r1S5UBk47aPHt37BKdAvrFGFB7dPEAM9rLuj",
+        "time": "2026-09-26T23:54:14.730Z"
+      }
+    ],
+    "settlementMode": "spl-test-cash",
+    "tokenModel": "Token-2022 restricted bonds",
+    "balances": {
+      "escrow": "11574073",
+      "supply": "0",
+      "holders": [
+        {
+          "bonds": "0",
+          "frozen": true,
+          "cash": "1129629619"
+        },
+        {
+          "bonds": "0",
+          "frozen": true,
+          "cash": "2631944420"
+        }
+      ]
+    },
+    "automation": {
+      "enabled": true,
+      "error": null,
+      "lastRun": "2026-09-27T00:01:04.237Z"
+    }
+  },
+  "report": {
+    "exportedAt": "2026-09-27T00:01:06.348Z",
+    "settlement": "Actual transfers of unbacked SPL TEST USD; Token-2022 bonds; no real money",
+    "runtime": "Solana Devnet; unbacked test tokens, no real money",
+    "programId": "4r48EMFeGkNMyrhEvoZgkmQJrdW9VjaatRpH9y677nq1",
+    "state": {
+      "initialized": true,
+      "authority": "6u5MSR3QDZ4u6LyoiJ32esP6bSMvYfiRWhSSKmdo8kte",
+      "face": "123456789",
+      "couponBps": 750,
+      "frequency": 4,
+      "periods": 1,
+      "issuedAt": 1790466838,
+      "maturity": 1790467137,
+      "supply": "0",
+      "retired": "30",
+      "couponMask": "2",
+      "holders": [
+        {
+          "index": 0,
+          "wallet": "dU96eekU6siaa7KqXT4QaDLmav69ADRynhPTcjEHZj7",
+          "units": "0"
+        },
+        {
+          "index": 1,
+          "wallet": "4XayZGD8oiRzat19LALmFMrKniGLtKYf1Lr5Gu6sU5X4",
+          "units": "0"
+        }
+      ],
+      "actions": [
+        {
+          "id": 1,
+          "kind": 2,
+          "period": 0,
+          "bps": 2000,
+          "recordAt": 1790466867,
+          "snapshotSlot": "504585776",
+          "status": 4,
+          "rows": [
+            {
+              "holder": 0,
+              "units": "9",
+              "retireUnits": "1",
+              "amount": "123456789",
+              "settled": true
+            },
+            {
+              "holder": 1,
+              "units": "21",
+              "retireUnits": "4",
+              "amount": "493827156",
+              "settled": true
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "kind": 0,
+          "period": 1,
+          "bps": 0,
+          "recordAt": 1790467173,
+          "snapshotSlot": "504587103",
+          "status": 4,
+          "rows": [
+            {
+              "holder": 0,
+              "units": "8",
+              "retireUnits": "0",
+              "amount": "18518518",
+              "settled": true
+            },
+            {
+              "holder": 1,
+              "units": "17",
+              "retireUnits": "0",
+              "amount": "39351851",
+              "settled": true
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "kind": 1,
+          "period": 0,
+          "bps": 10000,
+          "recordAt": 1790467242,
+          "snapshotSlot": "504587415",
+          "status": 4,
+          "rows": [
+            {
+              "holder": 0,
+              "units": "8",
+              "retireUnits": "8",
+              "amount": "987654312",
+              "settled": true
+            },
+            {
+              "holder": 1,
+              "units": "17",
+              "retireUnits": "17",
+              "amount": "2098765413",
+              "settled": true
+            }
+          ]
+        }
+      ],
+      "tokens": {
+        "enabled": true,
+        "bondMint": "BQoAdmp1HDuZJe94XQdf6y9jg6SJ7UbKvLpyLVEDACmY",
+        "cashMint": "5j5MUHKE63mcejpWfhcdR9DUrbcSsdBeJSaKh5SmZyXA",
+        "vault": "F3QfiLg1pGKgyE4f8gYMr2Do6sVpC5VtcD7412tcskvC"
+      }
+    },
+    "network": "devnet",
+    "rpc": "https://api.devnet.solana.com",
+    "createdAt": "2026-09-26T23:53:57.916Z",
+    "names": [
+      "QA Investor A",
+      "QA Investor B"
+    ],
+    "metadata": {
+      "issuer": "KASE Flow QA",
+      "name": "Проверка полного цикла — серия 02",
+      "symbol": "QA.02",
+      "draftId": "0d46e6bd-238f-4937-872f-792333231795",
+      "termsHash": "94656e0b24ff1bd3dc9f818eaa806090ff03a3e8c40fccbdda5abf5e0c14bd17",
+      "document": "Devnet verification: custom terms, multi-issue isolation, transfer, partial redemption, coupon and final redemption."
+    },
+    "wallets": [
+      "dU96eekU6siaa7KqXT4QaDLmav69ADRynhPTcjEHZj7",
+      "4XayZGD8oiRzat19LALmFMrKniGLtKYf1Lr5Gu6sU5X4"
+    ],
+    "externalWallet": null,
+    "tokens": {
+      "bondMint": "BQoAdmp1HDuZJe94XQdf6y9jg6SJ7UbKvLpyLVEDACmY",
+      "cashMint": "5j5MUHKE63mcejpWfhcdR9DUrbcSsdBeJSaKh5SmZyXA",
+      "vault": "F3QfiLg1pGKgyE4f8gYMr2Do6sVpC5VtcD7412tcskvC",
+      "bonds": [
+        "Ap2BLwmYzSdbdHFWj32VXxTnWdrkJbYoYQPdtM6egm4o",
+        "H82w8ZLYSow6QpuFzCUPTpzmZjGVZdyPk55LpBdg2qjb"
+      ],
+      "cash": [
+        "4v8foDFEggBcAqLwszQu71QkSutRHkqW9JHymhgJ3AHu",
+        "DUuBELJkwf1ti7JW26zomnegdyQaPbM7cVkLq4e3nF6r"
+      ]
+    },
+    "balances": {
+      "escrow": "11574073",
+      "supply": "0",
+      "holders": [
+        {
+          "bonds": "0",
+          "frozen": true,
+          "cash": "1129629619"
+        },
+        {
+          "bonds": "0",
+          "frozen": true,
+          "cash": "2631944420"
+        }
+      ]
+    },
+    "transactions": [
+      {
+        "type": "Auto payment",
+        "signature": "5vFrEpUiXtRcYDrhUzkZH3H76E4De73qDFsXBzMeRMNCMSyefZZRXFao5vjpjqb4ToNcxLxEyZSRHFzCSmPTJq4B",
+        "time": "2026-09-27T00:01:04.235Z"
+      },
+      {
+        "type": "Auto payment",
+        "signature": "43XQdjvrjZPyxyryo77z9kN9bs8xDJmeYR8TrsCV9czE2hwdhzLtgCttXErUwvcuxKV7k8sZahQ1KWeUVqEM6EmN",
+        "time": "2026-09-27T00:00:59.071Z"
+      },
+      {
+        "type": "Auto initiate",
+        "signature": "3sKGxQndj8sw2BUhR3o7Gp31fytJoog5vWePF9X4aVkQ7s1JCE4D9BUaMxEvDWuZdDguxpnASBNL1HQiBAMmp3gH",
+        "time": "2026-09-27T00:00:53.838Z"
+      },
+      {
+        "type": "Auto snapshot",
+        "signature": "5cJGWePgvEzANksHYcHZuo5vQVjNe5wi9KHnexHbrPQCsQmqDZ9r87HTM9SHneA6tHuipxwAVWT9ucPv91gAtNAY",
+        "time": "2026-09-27T00:00:48.283Z"
+      },
+      {
+        "type": "Auto redemption scheduled",
+        "signature": "5RBwbCEPJbQugi4EdSG1UzUtDjwn9gp4SKAG7JKiSHqBbhsggqo9bF8whDkNfdHcEPrjJGFHd3ht57V2NYiG5eBV",
+        "time": "2026-09-27T00:00:15.279Z"
+      },
+      {
+        "type": "Auto payment",
+        "signature": "2gUHSctW9Xdrqkk6ThPqwujxn6gCFHoHY1MpD7UgAJidS5UmPL1yG4vhhmk3vjMJgb7ztFB6epFrLQmd8rWgjNYv",
+        "time": "2026-09-27T00:00:08.479Z"
+      },
+      {
+        "type": "Auto payment",
+        "signature": "2Tczy4kh7AxuVc34fXRsxTh6izxvL6TTB3hNxaCmWUkjJKcFHcWDXCpSvTVjk6Kv4ThZ1WHhoBgE6VQZE9XmTepV",
+        "time": "2026-09-26T23:59:53.329Z"
+      },
+      {
+        "type": "Auto initiate",
+        "signature": "osvzEh815UcSVEDkGfcbjBD9Rpbv64wssF5sdy6F2yiJiqvPV8T9oVZ4BBjFoswoTPo5etncYJG7rfYq7sqE2YH",
+        "time": "2026-09-26T23:59:46.353Z"
+      },
+      {
+        "type": "Auto snapshot",
+        "signature": "MNLuLfeigibYM5HdQXZBtZq3C5M7Qh8u2EL4Hqm6ZFZF3YrCDnSWQXkr6xhRe28es6FHwP9eG2xgtq11tRhy7UB",
+        "time": "2026-09-26T23:59:39.279Z"
+      },
+      {
+        "type": "Auto coupon scheduled",
+        "signature": "39HAi3Rztg95nEFtssdgHSUm9Zvr8KUY9t6AAGQm5eL57o3HYMuvLHUa83ujA69RwBsbN3iusVfEk3eLKR1NhAPz",
+        "time": "2026-09-26T23:59:10.491Z"
+      },
+      {
+        "type": "confirm",
+        "signature": "5hPW2EtTicaXvVsdz8k5aCjYp3yYdWBmLJGsnKQ81eSE45BeQGitB9aWqxb4mAwovKNxcrb84FPMzi89N2Gi59os",
+        "time": "2026-09-26T23:54:33.797Z",
+        "holder": 1
+      },
+      {
+        "type": "confirm",
+        "signature": "e23D77czC5pKv2WbfhUSFXNjjCnxkbRGjUPYXnkdwe2sfmyXs7BZCkL3P8bDC1RB8XWorefVynhfBm47srUUvCE",
+        "time": "2026-09-26T23:54:32.704Z",
+        "holder": 0
+      },
+      {
+        "type": "initiate",
+        "signature": "3LP8BZJcugBenP1oXw2WXhd73MD4B2E8w8GMKQpWFFkmwNXAagP4dfwad7fDcoqQy9eFcYLgg9htKJbHWWHtPKAH",
+        "time": "2026-09-26T23:54:31.441Z"
+      },
+      {
+        "type": "snapshot",
+        "signature": "egatmTcHKHck4oa3BFj55j1K8pFSaej1nvyMNhriTTR8pw57NjendqgV3C3Fd5yULmXDJPb4EVqbesG9CHzK4sp",
+        "time": "2026-09-26T23:54:30.375Z"
+      },
+      {
+        "type": "schedule",
+        "signature": "5ZhAUac5pRTatGrxi3EnPJDTHW1Dx1kbJqa5wS8NhQ1YrB2EeYTreN34DmkqTiZ58xSyLF93hnpVEkSDHs7pTHGW",
+        "time": "2026-09-26T23:54:18.628Z"
+      },
+      {
+        "type": "transfer",
+        "signature": "57dv6pYSitfkywrKw2PrTLvs83shhMLGM836vReKwUNtwQkYdGti5WrHDuBtkrcvXwLYpKP9vbUFwQgXFchW2x3b",
+        "time": "2026-09-26T23:54:17.287Z"
+      },
+      {
+        "type": "Instrument setup",
+        "signature": "5wkDNFMR38PbFDy7Cs9JrXPW2T8PXKfd6NVKrGdBWYHzXGoctAC5ns9o8xvZPE6cSM1bgmLQ5C7kFqveE9SPcHbP",
+        "time": "2026-09-26T23:54:14.730Z"
+      },
+      {
+        "type": "Instrument setup",
+        "signature": "cU4azb4Ygu8bLoE5vxju3sVo2LUuxDwoUuCaG5a2t9xFWW44Sybn7uWFqhT5NqWUDF1RUimJS3FmqTTLMLUnbvj",
+        "time": "2026-09-26T23:54:14.730Z"
+      },
+      {
+        "type": "Instrument setup",
+        "signature": "3Squ3cK8bLHTFakhRzsGM2epvMEnbjhfWWQ4Se8tMhsrLTnCEeH5a31W4QvXrXKCNdS5aK373YTGjd69KUY2E3C9",
+        "time": "2026-09-26T23:54:14.730Z"
+      },
+      {
+        "type": "Instrument setup",
+        "signature": "786HiZjup6Bw9ZF7LpBwtn7VZrFa9Vmy4HMWou9ErgKCXWTLNwpM29cSaHensRMJyTWtbARDZQArZoHQ5nSu4dX",
+        "time": "2026-09-26T23:54:14.730Z"
+      },
+      {
+        "type": "Instrument setup",
+        "signature": "33vXKdZb3npNnP4MJXVpv7yvczPmuxj4sxkT71hxAkcMczM7Z7JQcptYjPFHPuc1FKc1HPHvaPMeHNWYLPiUsYsz",
+        "time": "2026-09-26T23:54:14.730Z"
+      },
+      {
+        "type": "Instrument setup",
+        "signature": "2JqPuh4ryDizdGkBiBd2ASqvJocgwhQjQSpjsyNc5wQRCWXERW33r1S5UBk47aPHt37BKdAvrFGFB7dPEAM9rLuj",
+        "time": "2026-09-26T23:54:14.730Z"
+      }
+    ],
+    "termsRecord": {
+      "id": "0d46e6bd-238f-4937-872f-792333231795",
+      "revision": 1,
+      "status": "published",
+      "terms": {
+        "issuer": "KASE Flow QA",
+        "name": "Проверка полного цикла — серия 02",
+        "symbol": "QA.02",
+        "face": "123.456789",
+        "couponBps": 750,
+        "frequency": 4,
+        "periods": 1,
+        "duration": 300,
+        "supply": 30,
+        "document": "Devnet verification: custom terms, multi-issue isolation, transfer, partial redemption, coupon and final redemption.",
+        "applications": [
+          {
+            "name": "QA Investor A",
+            "wallet": "",
+            "units": 10,
+            "admitted": true
+          },
+          {
+            "name": "QA Investor B",
+            "wallet": "",
+            "units": 20,
+            "admitted": true
+          }
+        ]
+      },
+      "history": [
+        {
+          "event": "Сохранены условия",
+          "at": "2026-09-26T23:53:57.396Z",
+          "revision": 1,
+          "hash": "94656e0b24ff1bd3dc9f818eaa806090ff03a3e8c40fccbdda5abf5e0c14bd17"
+        },
+        {
+          "event": "Проверено оператором (локальный прототип)",
+          "at": "2026-09-26T23:53:57.405Z",
+          "hash": "94656e0b24ff1bd3dc9f818eaa806090ff03a3e8c40fccbdda5abf5e0c14bd17",
+          "revision": 1
+        },
+        {
+          "event": "Размещён в Solana Devnet",
+          "at": "2026-09-26T23:54:14.755Z",
+          "state": "GVEUtuhwcsfqGieZnodcq41f1Wf5Dj4L8pQkZspDMEiL"
+        }
+      ],
+      "createdAt": "2026-09-26T23:53:57.395Z",
+      "updatedAt": "2026-09-26T23:53:57.396Z",
+      "approval": {
+        "at": "2026-09-26T23:53:57.405Z",
+        "hash": "94656e0b24ff1bd3dc9f818eaa806090ff03a3e8c40fccbdda5abf5e0c14bd17",
+        "revision": 1
+      },
+      "startedAt": "2026-09-26T23:53:57.540Z",
+      "provisioning": {
+        "config": {
+          "programId": "4r48EMFeGkNMyrhEvoZgkmQJrdW9VjaatRpH9y677nq1",
+          "state": "GVEUtuhwcsfqGieZnodcq41f1Wf5Dj4L8pQkZspDMEiL",
+          "network": "devnet",
+          "rpc": "https://api.devnet.solana.com",
+          "createdAt": "2026-09-26T23:53:57.916Z",
+          "names": [
+            "QA Investor A",
+            "QA Investor B"
+          ],
+          "metadata": {
+            "issuer": "KASE Flow QA",
+            "name": "Проверка полного цикла — серия 02",
+            "symbol": "QA.02",
+            "draftId": "0d46e6bd-238f-4937-872f-792333231795",
+            "termsHash": "94656e0b24ff1bd3dc9f818eaa806090ff03a3e8c40fccbdda5abf5e0c14bd17",
+            "document": "Devnet verification: custom terms, multi-issue isolation, transfer, partial redemption, coupon and final redemption."
+          },
+          "wallets": [
+            "dU96eekU6siaa7KqXT4QaDLmav69ADRynhPTcjEHZj7",
+            "4XayZGD8oiRzat19LALmFMrKniGLtKYf1Lr5Gu6sU5X4"
+          ],
+          "externalWallet": null,
+          "tokens": {
+            "bondMint": "BQoAdmp1HDuZJe94XQdf6y9jg6SJ7UbKvLpyLVEDACmY",
+            "cashMint": "5j5MUHKE63mcejpWfhcdR9DUrbcSsdBeJSaKh5SmZyXA",
+            "vault": "F3QfiLg1pGKgyE4f8gYMr2Do6sVpC5VtcD7412tcskvC",
+            "bonds": [
+              "Ap2BLwmYzSdbdHFWj32VXxTnWdrkJbYoYQPdtM6egm4o",
+              "H82w8ZLYSow6QpuFzCUPTpzmZjGVZdyPk55LpBdg2qjb"
+            ],
+            "cash": [
+              "4v8foDFEggBcAqLwszQu71QkSutRHkqW9JHymhgJ3AHu",
+              "DUuBELJkwf1ti7JW26zomnegdyQaPbM7cVkLq4e3nF6r"
+            ]
+          }
+        },
+        "setupSignatures": [
+          "5wkDNFMR38PbFDy7Cs9JrXPW2T8PXKfd6NVKrGdBWYHzXGoctAC5ns9o8xvZPE6cSM1bgmLQ5C7kFqveE9SPcHbP",
+          "cU4azb4Ygu8bLoE5vxju3sVo2LUuxDwoUuCaG5a2t9xFWW44Sybn7uWFqhT5NqWUDF1RUimJS3FmqTTLMLUnbvj",
+          "3Squ3cK8bLHTFakhRzsGM2epvMEnbjhfWWQ4Se8tMhsrLTnCEeH5a31W4QvXrXKCNdS5aK373YTGjd69KUY2E3C9",
+          "786HiZjup6Bw9ZF7LpBwtn7VZrFa9Vmy4HMWou9ErgKCXWTLNwpM29cSaHensRMJyTWtbARDZQArZoHQ5nSu4dX",
+          "33vXKdZb3npNnP4MJXVpv7yvczPmuxj4sxkT71hxAkcMczM7Z7JQcptYjPFHPuc1FKc1HPHvaPMeHNWYLPiUsYsz",
+          "2JqPuh4ryDizdGkBiBd2ASqvJocgwhQjQSpjsyNc5wQRCWXERW33r1S5UBk47aPHt37BKdAvrFGFB7dPEAM9rLuj"
+        ]
+      },
+      "issueId": "GVEUtuhwcsfqGieZnodcq41f1Wf5Dj4L8pQkZspDMEiL",
+      "publishedAt": "2026-09-26T23:54:14.755Z"
+    }
+  }
+}

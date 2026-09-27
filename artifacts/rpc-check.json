@@ -1,0 +1,49 @@
+{
+  "checkedAt": "2026-09-26T22:28:33.219Z",
+  "endpoint": "https://fra.sol.supanode.xyz:8899",
+  "checks": {
+    "getHealth": {
+      "ok": true,
+      "result": "ok"
+    },
+    "getVersion": {
+      "ok": true,
+      "result": {
+        "feature-set": 565236538,
+        "solana-core": "0.1105.40200"
+      }
+    },
+    "getGenesisHash": {
+      "ok": true,
+      "result": "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d"
+    },
+    "getSlot": {
+      "ok": true,
+      "result": 450808900
+    }
+  },
+  "cluster": "mainnet-beta",
+  "clusterReferences": {
+    "mainnet-beta": {
+      "ok": true,
+      "result": "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d"
+    },
+    "devnet": {
+      "ok": true,
+      "result": "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG"
+    },
+    "testnet": {
+      "ok": true,
+      "result": "4uhcVJyU9pJkvQyS88uRDiswHXSCkY3zQawwpjk2NsNY"
+    }
+  },
+  "demoProgram": {
+    "address": "He8Tva6MvfLam7itfj3bi14wy4vbZ8K1Ard77Hta98SF",
+    "exists": false,
+    "executable": false
+  },
+  "websocket": {
+    "ok": true,
+    "slot": 450808940
+  }
+}

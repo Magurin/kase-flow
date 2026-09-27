@@ -1,0 +1,11 @@
+node_modules/
+dist/
+target/
+program/target/
+.local/
+*.log
+*.tsbuildinfo
+artifacts/video/
+artifacts/*-debug.png
+artifacts/preview.png
+artifacts/kase-flow-source.zip
