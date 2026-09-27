@@ -130,15 +130,22 @@ impl Env {
                 periods: 2,
                 maturity: T0 + 1000,
                 holders: vec![
-                    Holder { wallet: key(&env.holders[0]).to_bytes(), units: 10 },
-                    Holder { wallet: key(&env.holders[1]).to_bytes(), units: 20 },
+                    Holder {
+                        wallet: key(&env.holders[0]).to_bytes(),
+                        units: 10,
+                    },
+                    Holder {
+                        wallet: key(&env.holders[1]).to_bytes(),
+                        units: 20,
+                    },
                 ],
             },
             &issuer,
             vec![],
             true,
         );
-        let create = system_instruction::create_account(&issuer, &key(&env.state), rent, 16384, &program);
+        let create =
+            system_instruction::create_account(&issuer, &key(&env.state), rent, 16384, &program);
         let state_kp = env.state.insecure_clone();
         env.send(vec![create, init], &[&state_kp]).unwrap();
 
@@ -169,13 +176,23 @@ impl Env {
         }
         if options.forbidden_extension {
             ixs.push(
-                spl_token_2022::instruction::initialize_mint_close_authority(&t22, &bond, Some(&issuer))
-                    .unwrap(),
+                spl_token_2022::instruction::initialize_mint_close_authority(
+                    &t22,
+                    &bond,
+                    Some(&issuer),
+                )
+                .unwrap(),
             );
         }
         ixs.push(
-            spl_token_2022::instruction::initialize_mint2(&t22, &bond, &mint_authority, Some(&pda), 0)
-                .unwrap(),
+            spl_token_2022::instruction::initialize_mint2(
+                &t22,
+                &bond,
+                &mint_authority,
+                Some(&pda),
+                0,
+            )
+            .unwrap(),
         );
         if options.metadata {
             ixs.push(spl_token_metadata_interface::instruction::initialize(
@@ -201,7 +218,9 @@ impl Env {
             );
         }
         let cash_rent = env.svm.minimum_balance_for_rent_exemption(82);
-        ixs.push(system_instruction::create_account(&issuer, &cash, cash_rent, 82, &spl));
+        ixs.push(system_instruction::create_account(
+            &issuer, &cash, cash_rent, 82, &spl,
+        ));
         ixs.push(spl_token::instruction::initialize_mint2(&spl, &cash, &issuer, None, 6).unwrap());
         env.send(ixs, &[&bond_kp, &cash_kp]).unwrap();
 
@@ -209,8 +228,16 @@ impl Env {
         let mut ixs = vec![
             create_ata(&issuer, &pda, &cash, &spl),
             create_ata(&issuer, &issuer, &cash, &spl),
-            spl_token::instruction::mint_to_checked(&spl, &cash, &env.vault, &issuer, &[], budget, 6)
-                .unwrap(),
+            spl_token::instruction::mint_to_checked(
+                &spl,
+                &cash,
+                &env.vault,
+                &issuer,
+                &[],
+                budget,
+                6,
+            )
+            .unwrap(),
         ];
         for h in env.holders.iter().map(key).collect::<Vec<_>>() {
             ixs.push(create_ata(&issuer, &h, &bond, &t22));
@@ -275,13 +302,23 @@ impl Env {
         }
     }
 
-    fn ix(&self, data: &Ix, signer: &Pubkey, keys: Vec<AccountMeta>, state_signs: bool) -> Instruction {
+    fn ix(
+        &self,
+        data: &Ix,
+        signer: &Pubkey,
+        keys: Vec<AccountMeta>,
+        state_signs: bool,
+    ) -> Instruction {
         let mut accounts = vec![
             AccountMeta::new(key(&self.state), state_signs),
             AccountMeta::new_readonly(*signer, true),
         ];
         accounts.extend(keys);
-        Instruction { program_id: self.program, accounts, data: borsh::to_vec(data).unwrap() }
+        Instruction {
+            program_id: self.program,
+            accounts,
+            data: borsh::to_vec(data).unwrap(),
+        }
     }
 
     fn send(&mut self, ixs: Vec<Instruction>, extra: &[&Keypair]) -> Result<(), String> {
@@ -323,22 +360,41 @@ impl Env {
     }
     fn bond_balance(&self, holder: usize) -> u64 {
         let a = self.svm.get_account(&addr(&self.bonds[holder])).unwrap();
-        StateWithExtensions::<BondAccount>::unpack(&a.data).unwrap().base.amount
+        StateWithExtensions::<BondAccount>::unpack(&a.data)
+            .unwrap()
+            .base
+            .amount
     }
     fn bond_supply(&self) -> u64 {
         let a = self.svm.get_account(&addr(&self.bond)).unwrap();
-        StateWithExtensions::<BondMint>::unpack(&a.data).unwrap().base.supply
+        StateWithExtensions::<BondMint>::unpack(&a.data)
+            .unwrap()
+            .base
+            .supply
     }
 
     fn schedule(&mut self, kind: u8, period: u8, bps: u16, record_at: i64) -> Result<(), String> {
-        self.issuer(Ix::Schedule { kind, period, bps, record_at })
+        self.issuer(Ix::Schedule {
+            kind,
+            period,
+            bps,
+            record_at,
+        })
     }
     /// Snapshot, initiate and pay every row of the latest action at `time`.
     fn settle(&mut self, time: i64) {
         self.at(time);
         self.issuer(Ix::Snapshot).unwrap();
         self.issuer(Ix::Initiate).unwrap();
-        let rows: Vec<u8> = self.instrument().actions.last().unwrap().rows.iter().map(|r| r.holder).collect();
+        let rows: Vec<u8> = self
+            .instrument()
+            .actions
+            .last()
+            .unwrap()
+            .rows
+            .iter()
+            .map(|r| r.holder)
+            .collect();
         for holder in rows {
             self.issuer(Ix::Confirm { holder }).unwrap();
         }
@@ -347,7 +403,10 @@ impl Env {
 
 fn expect_err(result: Result<(), String>, message: &str) {
     let logs = result.expect_err(&format!("expected failure: {message}"));
-    assert!(logs.contains(message), "expected `{message}` in logs:\n{logs}");
+    assert!(
+        logs.contains(message),
+        "expected `{message}` in logs:\n{logs}"
+    );
 }
 
 #[test]
@@ -357,25 +416,49 @@ fn full_lifecycle_pays_burns_and_releases_residual() {
     assert_eq!(env.bond_supply(), 30);
 
     env.at(T0 + 100);
-    env.program_ix(Ix::Transfer { from: 0, to: 1, units: 4 }, Some(0)).unwrap();
+    env.program_ix(
+        Ix::Transfer {
+            from: 0,
+            to: 1,
+            units: 4,
+        },
+        Some(0),
+    )
+    .unwrap();
     assert_eq!((env.bond_balance(0), env.bond_balance(1)), (6, 24));
 
     env.schedule(0, 1, 0, T0 + 500).unwrap();
     env.at(T0 + 500);
     expect_err(
-        env.program_ix(Ix::Transfer { from: 1, to: 0, units: 1 }, Some(1)),
+        env.program_ix(
+            Ix::Transfer {
+                from: 1,
+                to: 0,
+                units: 1,
+            },
+            Some(1),
+        ),
         "Record-date transfer lock",
     );
     env.issuer(Ix::Snapshot).unwrap();
     env.issuer(Ix::Initiate).unwrap();
-    expect_err(env.program_ix(Ix::Confirm { holder: 0 }, Some(1)), "Issuer authority required");
+    expect_err(
+        env.program_ix(Ix::Confirm { holder: 0 }, Some(1)),
+        "Issuer authority required",
+    );
     env.issuer(Ix::Confirm { holder: 0 }).unwrap();
     env.program_ix(Ix::Confirm { holder: 1 }, Some(1)).unwrap();
-    expect_err(env.issuer(Ix::Confirm { holder: 1 }), "Settlement not initiated");
+    expect_err(
+        env.issuer(Ix::Confirm { holder: 1 }),
+        "Settlement not initiated",
+    );
     assert_eq!(env.cash_balance(&env.cashes[0]), 300_000_000);
     assert_eq!(env.cash_balance(&env.cashes[1]), 1_200_000_000);
 
-    expect_err(env.issuer(Ix::Withdraw), "Escrow is released only after full redemption");
+    expect_err(
+        env.issuer(Ix::Withdraw),
+        "Escrow is released only after full redemption",
+    );
 
     env.at(T0 + 600);
     env.schedule(2, 0, 5000, T0 + 700).unwrap();
@@ -384,7 +467,10 @@ fn full_lifecycle_pays_burns_and_releases_residual() {
     assert_eq!(env.bond_supply(), 15);
 
     env.at(T0 + 800);
-    expect_err(env.schedule(1, 0, 10_000, T0 + 1000), "Settle all coupon periods");
+    expect_err(
+        env.schedule(1, 0, 10_000, T0 + 1000),
+        "Settle all coupon periods",
+    );
     env.schedule(0, 2, 0, T0 + 1000).unwrap();
     env.settle(T0 + 1000);
     env.schedule(1, 0, 10_000, T0 + 1000).unwrap();
@@ -396,7 +482,10 @@ fn full_lifecycle_pays_burns_and_releases_residual() {
     // Budget covered full coupons on 30 bonds; the partial redemption left 750 USD unused.
     let residual = 750_000_000 + RESIDUAL;
     assert_eq!(env.cash_balance(&env.vault), residual);
-    expect_err(env.program_ix(Ix::Withdraw, Some(0)), "Issuer authority required");
+    expect_err(
+        env.program_ix(Ix::Withdraw, Some(0)),
+        "Issuer authority required",
+    );
     env.issuer(Ix::Withdraw).unwrap();
     assert_eq!(env.cash_balance(&env.vault), 0);
     let issuer_cash = ata(&key(&env.issuer), &env.cash, &spl_token::id());
@@ -409,7 +498,10 @@ fn record_date_must_be_close_to_the_obligation() {
     let mut env = Env::new(Options::default());
     let due = T0 + 500;
     expect_err(env.schedule(0, 1, 0, due - 1), "Coupon period not due");
-    expect_err(env.schedule(0, 1, 0, due + 31 * 86_400), "Record date too far");
+    expect_err(
+        env.schedule(0, 1, 0, due + 31 * 86_400),
+        "Record date too far",
+    );
     env.schedule(0, 1, 0, due + 29 * 86_400).unwrap();
 }
 
@@ -417,20 +509,34 @@ fn record_date_must_be_close_to_the_obligation() {
 fn unpaid_action_can_be_cancelled_and_rescheduled() {
     let mut env = Env::new(Options::default());
     env.schedule(0, 1, 0, T0 + 500).unwrap();
-    expect_err(env.program_ix(Ix::Cancel, Some(0)), "Issuer authority required");
+    expect_err(
+        env.program_ix(Ix::Cancel, Some(0)),
+        "Issuer authority required",
+    );
     env.at(T0 + 500);
     env.issuer(Ix::Snapshot).unwrap();
     env.issuer(Ix::Cancel).unwrap();
     assert!(env.instrument().actions.is_empty());
     // Transfers are unlocked again once the pending record date is withdrawn.
-    env.program_ix(Ix::Transfer { from: 0, to: 1, units: 1 }, Some(0)).unwrap();
+    env.program_ix(
+        Ix::Transfer {
+            from: 0,
+            to: 1,
+            units: 1,
+        },
+        Some(0),
+    )
+    .unwrap();
 
     env.schedule(0, 1, 0, T0 + 600).unwrap();
     env.at(T0 + 600);
     env.issuer(Ix::Snapshot).unwrap();
     env.issuer(Ix::Initiate).unwrap();
     env.issuer(Ix::Confirm { holder: 0 }).unwrap();
-    expect_err(env.issuer(Ix::Cancel), "Only an unpaid action can be cancelled");
+    expect_err(
+        env.issuer(Ix::Cancel),
+        "Only an unpaid action can be cancelled",
+    );
 }
 
 #[test]
@@ -462,13 +568,19 @@ fn frozen_bonds_cannot_bypass_the_registry() {
 
 #[test]
 fn bond_mint_may_carry_display_metadata() {
-    let env = Env::new(Options { metadata: true, ..Default::default() });
+    let env = Env::new(Options {
+        metadata: true,
+        ..Default::default()
+    });
     env.attached.clone().unwrap();
     assert_eq!(env.bond_supply(), 30);
 }
 
 #[test]
 fn bond_mint_rejects_other_extensions() {
-    let env = Env::new(Options { forbidden_extension: true, ..Default::default() });
+    let env = Env::new(Options {
+        forbidden_extension: true,
+        ..Default::default()
+    });
     expect_err(env.attached.clone(), "Unexpected bond mint extensions");
 }

@@ -33,7 +33,23 @@ export const ROOT = new URL("../", import.meta.url);
 export const LOCAL = new URL("../.local/devnet/", import.meta.url);
 export const RPC =
   process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
-export const connection = new Connection(RPC, "confirmed");
+// Public Devnet RPC rate-limits bursts. The built-in retry gives up after about
+// seven seconds; back off longer (honouring Retry-After) before failing a step.
+async function patientFetch(input, init) {
+  for (let attempt = 0; ; attempt++) {
+    const response = await fetch(input, init);
+    if (response.status !== 429 || attempt === 7) return response;
+    const after = Number(response.headers.get("retry-after"));
+    const delay =
+      after > 0 ? after * 1000 : Math.min(500 * 2 ** attempt, 16000);
+    await new Promise((r) => setTimeout(r, delay));
+  }
+}
+export const connection = new Connection(RPC, {
+  commitment: "confirmed",
+  fetch: patientFetch,
+  disableRetryOnRateLimit: true,
+});
 let verifiedDevnet = false;
 export async function assertTestNetwork() {
   if (!verifiedDevnet) {

@@ -6,22 +6,34 @@ The current application supports **Solana Devnet only** at http://127.0.0.1:5173
 
 Program: `4r48EMFeGkNMyrhEvoZgkmQJrdW9VjaatRpH9y677nq1`.
 
-`artifacts/devnet-evidence.json` contains setup signatures, four actions, balances and five transaction signatures per action. The completed test used two holders with 10 and 20 bonds:
+The program was upgraded in place on 27 September 2026 (slot 504591436): `Cancel`, `Withdraw`, record-date bounds, the whole-bond check for partial redemption and a metadata-aware mint whitelist. The state layout did not change; instruments issued earlier still decode and operate.
 
-1. Coupon 1: first holder receives 500 TEST USD.
-2. Partial redemption 20%: first holder receives 2,000 TEST USD; total mint supply drops from 30 to 24.
-3. Coupon 2: first holder receives 400 TEST USD on eight remaining bonds.
-4. Final redemption: first holder receives 8,000 TEST USD; token supply becomes zero.
+`artifacts/devnet-evidence.json` is from `npm run test:chain` against the upgraded program. Two holders with 10 and 20 bonds:
 
-Final first-holder balance: **10,900 TEST USD**. Token transfers, Token-2022 burn, receipts and registry state were confirmed in Devnet. The program has not changed since this public-chain run; subsequent changes removed the alternate runtime and switched the default API to Devnet.
+0. Token metadata: bond mint reads back as "Steppe Energy 2028" / STPE.28 from Token-2022; the TEST USD Metaplex metadata account exists.
+1. Cancellation: coupon 1 scheduled and cancelled; the instrument returns to zero actions.
+2. Coupon 1: first holder receives 500 TEST USD.
+3. Partial redemption 20%: first holder receives 2,000 TEST USD; total mint supply drops from 30 to 24.
+4. Coupon 2: first holder receives 400 TEST USD on eight remaining bonds.
+5. Final redemption: first holder receives 8,000 TEST USD; token supply becomes zero.
+6. Escrow release: exactly 300.000004 TEST USD remained (coupon 2 on the six redeemed bonds plus the 4 micro-unit rounding reserve) and moved to the issuer; the vault is empty.
 
-The public RPC sometimes returned 429, handled by client retry. Account batching and an eight-second API snapshot cache reduce request load.
+Final first-holder balance: **10,900 TEST USD**. Token transfers, Token-2022 burn, receipts and registry state were confirmed in Devnet.
+
+The public RPC returned 429 during this run and aborted it once after coupon 2's wait; `npm run test:chain -- --resume` continued from on-chain status without repeating a step. The RPC client now backs off up to ~16 s per request (honouring Retry-After) before failing.
+
+A demo issue created through the upgraded API was also scheduled and cancelled from the browser UI; program errors surface in Russian (for example, scheduling a second action returns "Сначала завершите или отмените текущее действие").
+
+## Program tests (LiteSVM)
+
+`npm run test:program`: 5 unit tests and 7 LiteSVM integration tests passed in under a second, running the compiled SBF program with the real SPL Token and Token-2022 programs: full lifecycle with a transfer, record-date lock, holder self-claim and cross-holder rejection, partial redemption burn, final redemption, residual release (issuer only); record dates bounded to 30 days; cancel before payment and refusal after; partial redemption that retires no whole bond rejected; frozen-account bypass rejected; metadata extensions accepted; other mint extensions rejected.
 
 ## Other validation
 
 - Rust unit tests: five passed, including exact coupon arithmetic, rounding, overflow, zero frequency and duplicate holders.
 - TypeScript/Vite production build passed.
-- JS integer-codec test passed; npm audit reports zero vulnerabilities.
+- Nine node tests passed, including the rounding reserve and demo/calendar terms; npm audit reports zero vulnerabilities.
+- API probes: a foreign Host header and a foreign Origin are rejected with 403; unknown `/api/*` routes return JSON 404.
 - Devnet UI loaded at desktop and 390px mobile width with no horizontal overflow or uncaught browser errors.
 - The full browser lifecycle and injected-wallet signature/autopilot flow were tested before the runtime simplification. Their scripts now target Devnet real time; the full long browser/security suites have not yet been rerun after that conversion. Do not present those earlier runs as Devnet browser tests.
 

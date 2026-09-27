@@ -85,12 +85,7 @@ app.use("/api", (req, res, next) => {
   if (
     req.method !== "GET" &&
     req.headers.origin &&
-    ![
-      "http://127.0.0.1:5173",
-      "http://localhost:5173",
-      "http://127.0.0.1:3001",
-      "http://localhost:3001",
-    ].includes(req.headers.origin)
+    !LOOPBACK.test(req.headers.origin.replace(/^http:\/\//, ""))
   )
     return res.status(403).json({ error: "Origin denied" });
   next();
@@ -513,7 +508,9 @@ app.post("/api/wallet/submit", (req, res) =>
       );
     const live = await state();
     if (live.actions.at(-1)?.id !== p.action)
-      throw Error("Корпоративное действие изменилось, подготовьте запрос заново");
+      throw Error(
+        "Корпоративное действие изменилось, подготовьте запрос заново",
+      );
     await assertTestNetwork();
     const signature = await connection.sendRawTransaction(tx.serialize(), {
       skipPreflight: false,

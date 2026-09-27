@@ -100,8 +100,7 @@ export function escrowBudget({ units, face, couponBps, frequency, periods }) {
   const principal = units.reduce((n, u) => n + BigInt(u), 0n) * face;
   const coupon = units.reduce(
     (n, u) =>
-      n +
-      (BigInt(u) * face * BigInt(couponBps)) / (10000n * BigInt(frequency)),
+      n + (BigInt(u) * face * BigInt(couponBps)) / (10000n * BigInt(frequency)),
     0n,
   );
   const reserve = BigInt(units.length) * BigInt(periods);

@@ -9,6 +9,8 @@
     "start": "node server/index.mjs",
     "chain:build": "cargo build-sbf --manifest-path program/Cargo.toml",
     "test": "node --test --test-concurrency=1 tests/*.test.mjs",
+    "test:program": "cargo build-sbf --manifest-path program/Cargo.toml && cargo test --manifest-path program/Cargo.toml",
+    "package": "node scripts/package.mjs",
     "devnet:deploy": "node scripts/devnet.mjs",
     "dev:devnet": "node scripts/devnet.mjs --serve",
     "test:e2e": "node scripts/e2e.mjs",

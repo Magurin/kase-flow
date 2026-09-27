@@ -13,7 +13,7 @@
 
 **Workspace release:** Multiple retained Devnet issues; custom issuance terms and holder allocations; versioned draft and local operator approval; per-issue automation; entitlement/escrow previews; obligation calendar; token reconciliation and terms-aware reports. Approval and admission metadata are local workflow records, not KYC or multisig.
 
-**Implemented:** Real Solana program; Token-2022 issuance; holder-signed transfers; record-date lock; SPL escrow; coupon, partial and final settlement; investor claims with wallet signatures and fee sponsorship; optional scheduler with state-based retries; transaction logs, public Explorer links and JSON audit export.
+**Implemented:** Real Solana program; Token-2022 issuance; holder-signed transfers; record-date lock; SPL escrow; coupon, partial and final settlement; investor claims with wallet signatures and fee sponsorship; cancellation of an unpaid action; return of the escrow residual to the issuer after full redemption; record dates bounded to 30 days after the obligation; named tokens in wallets (Token-2022 metadata for bonds, Metaplex metadata for TEST USD); demo or real-calendar issue terms with a consistent nominal tenor; optional per-issue scheduler with state-based retries; transaction logs, public Explorer links and JSON audit export. The program's state machine is covered by fast LiteSVM tests against the real token programs.
 
 **Network:** Solana Devnet only, deployed program [4r48EMFeGkNMyrhEvoZgkmQJrdW9VjaatRpH9y677nq1](https://explorer.solana.com/address/4r48EMFeGkNMyrhEvoZgkmQJrdW9VjaatRpH9y677nq1?cluster=devnet).
 

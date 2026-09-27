@@ -67,6 +67,7 @@ export type State = {
   actions: Action[];
   slot: number;
   chainTime: number;
+  receivedAt?: number;
   config: {
     state: string;
     programId: string;
@@ -95,8 +96,9 @@ export type State = {
     enabled: boolean;
     error: string | null;
     lastRun: string | null;
+    closed?: boolean;
   };
-  journal: { type: string; signature: string; time: string }[];
+  journal: { type: string; label?: string; signature: string; time: string }[];
 };
 const money = (micro: string | bigint) =>
   new Intl.NumberFormat("en-US", {
@@ -125,6 +127,25 @@ const statuses = [
   "Расчёт выполняется",
   "Завершено",
 ];
+const journalLabels: Record<string, string> = {
+  schedule: "Действие запланировано",
+  snapshot: "Права держателей зафиксированы",
+  initiate: "Расчёт инициирован",
+  confirm: "Выплата TEST USD проведена",
+  transfer: "Облигации переведены",
+  cancel: "Действие отменено",
+  withdraw: "Остаток escrow возвращён эмитенту",
+  "Instrument setup": "Выпуск размещён",
+  "Devnet setup": "Выпуск размещён",
+  "Recovered setup": "Размещение сверено с сетью",
+  "Test escrow funded": "Escrow пополнен",
+  "Wallet claim": "Выплата получена кошельком инвестора",
+  "Auto snapshot": "Автопилот: права зафиксированы",
+  "Auto initiate": "Автопилот: расчёт инициирован",
+  "Auto payment": "Автопилот: выплата проведена",
+  "Auto coupon scheduled": "Автопилот: купон запланирован",
+  "Auto redemption scheduled": "Автопилот: погашение запланировано",
+};
 const sum = (a?: Action) =>
   a?.rows.reduce((n, r) => n + BigInt(r.amount), 0n) ?? 0n;
 const names = [
@@ -167,7 +188,14 @@ export function App({
     [selected, setSelected] = useState<number | null>(null),
     [tx, setTx] = useState<any>(null),
     [transfer, setTransfer] = useState({ from: 0, to: 1, units: 10 }),
-    [tick, setTick] = useState(Date.now());
+    [tick, setTick] = useState(Date.now()),
+    [cancelling, setCancelling] = useState(false);
+  // Every request names its instrument explicitly; the server default
+  // profile is only a fallback for CLI scripts.
+  const scope = (): Record<string, string> => {
+    const id = s?.config.state || issueId;
+    return id ? { "X-Instrument-ID": id } : {};
+  };
   async function refresh() {
     try {
       const r = await fetch("/api/state", {
@@ -175,7 +203,7 @@ export function App({
       });
       const v = await r.json();
       if (!r.ok) throw Error(v.error);
-      setS(v);
+      setS({ ...v, receivedAt: Date.now() });
       setError("");
     } catch (e) {
       setError((e as Error).message);
@@ -183,11 +211,14 @@ export function App({
   }
   useEffect(() => {
     void refresh();
-    const id = setInterval(() => {
-      void refresh();
-      setTick(Date.now());
-    }, 2000);
-    return () => clearInterval(id);
+    // The API caches chain reads for up to 8 s; poll at half that and keep
+    // countdowns ticking every second on their own.
+    const poll = setInterval(() => void refresh(), 4000);
+    const clock = setInterval(() => setTick(Date.now()), 1000);
+    return () => {
+      clearInterval(poll);
+      clearInterval(clock);
+    };
   }, []);
   useEffect(() => {
     if (toast) {
@@ -202,7 +233,7 @@ export function App({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(s ? { "X-Instrument-ID": s.config.state } : {}),
+          ...scope(),
         },
         body: JSON.stringify(body),
       });
@@ -226,7 +257,7 @@ export function App({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(s ? { "X-Instrument-ID": s.config.state } : {}),
+          ...scope(),
         },
         body: JSON.stringify({ wallet }),
       });
@@ -246,7 +277,11 @@ export function App({
     action =
       selected === null ? current : s?.actions.find((a) => a.id === selected),
     active = !!current && current.status < 4;
-  const now = s?.chainTime ?? Math.floor(tick / 1000);
+  // Chain time advances locally between polls so countdowns stay smooth.
+  const now = s
+    ? s.chainTime +
+      Math.max(0, Math.floor((tick - (s.receivedAt ?? tick)) / 1000))
+    : Math.floor(tick / 1000);
   const total = s ? BigInt(s.supply) * BigInt(s.face) : 0n;
   const paid =
     s?.actions
@@ -286,6 +321,9 @@ export function App({
   const allCoupons = s
     ? BigInt(s.couponMask) === (1n << BigInt(s.periods + 1)) - 2n
     : false;
+  // Mirrors the program check: a partial redemption must retire a whole bond.
+  const retiresWholeBond =
+    !!s && s.holders.some((h) => BigInt(h.units) * BigInt(bps) >= 10000n);
   function openAction(k = 0) {
     setKind(k === 0 && allCoupons ? 1 : k);
     setPeriod(
@@ -454,7 +492,9 @@ export function App({
                 <button
                   className="button primary"
                   disabled={!s || busy || active}
-                  onClick={() => (s?.supply === "0" ? setPage(5) : openAction())}
+                  onClick={() =>
+                    s?.supply === "0" ? setPage(5) : openAction()
+                  }
                 >
                   <Plus size={17} />
                   {s?.supply === "0"
@@ -770,6 +810,45 @@ export function App({
                             </span>
                           )}
                         </div>
+                        {action.status < 3 &&
+                          action.rows.every((r) => !r.settled) && (
+                            <div className="action-cancel">
+                              {cancelling ? (
+                                <>
+                                  <span>
+                                    Отменить действие? Record date снимется,
+                                    переводы разблокируются.
+                                  </span>
+                                  <button
+                                    className="button secondary"
+                                    disabled={busy}
+                                    onClick={() => setCancelling(false)}
+                                  >
+                                    Нет
+                                  </button>
+                                  <button
+                                    className="button danger"
+                                    disabled={busy}
+                                    onClick={async () => {
+                                      await act({ operation: "cancel" });
+                                      setCancelling(false);
+                                    }}
+                                  >
+                                    Да, отменить
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  className="text-button"
+                                  disabled={busy}
+                                  onClick={() => setCancelling(true)}
+                                >
+                                  <X size={14} />
+                                  Отменить действие
+                                </button>
+                              )}
+                            </div>
+                          )}
                         {action.rows.length > 0 && (
                           <div className="entitlements">
                             <table>
@@ -1116,15 +1195,7 @@ export function App({
                         <Check size={15} />
                       </span>
                       <div>
-                        <b>
-                          {{
-                            schedule: "Действие запланировано",
-                            snapshot: "Права держателей зафиксированы",
-                            initiate: "Расчёт инициирован",
-                            confirm: "Демо-расчёт подтверждён",
-                            transfer: "Токены переведены",
-                          }[j.type] ?? "Инструмент выпущен"}
-                        </b>
+                        <b>{journalLabels[j.type] ?? j.label ?? j.type}</b>
                         <small>
                           {new Date(j.time).toLocaleString("ru-RU")}
                         </small>
@@ -1271,6 +1342,12 @@ export function App({
                     финальный.
                   </div>
                 )}
+                {kind === 2 && !retiresWholeBond && (
+                  <div className="modal-warning">
+                    При доле {bps / 100}% ни у одного держателя не погашается
+                    целая облигация. Выберите долю больше.
+                  </div>
+                )}
                 {kind === 2 && now >= s.maturity && (
                   <div className="modal-warning">
                     Срок выпуска наступил. Для этого сценария создайте новый
@@ -1289,7 +1366,8 @@ export function App({
                     s.supply === "0" ||
                     (kind === 0 && allCoupons) ||
                     (kind === 1 && !allCoupons) ||
-                    (kind === 2 && recordAt >= s.maturity)
+                    (kind === 2 &&
+                      (recordAt >= s.maturity || !retiresWholeBond))
                   }
                   onClick={() =>
                     act({

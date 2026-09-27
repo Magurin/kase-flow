@@ -6,6 +6,7 @@ import {
   ArrowRight,
   Download,
   RefreshCw,
+  Undo2,
 } from "lucide-react";
 import { post } from "./Investor";
 import { useState } from "react";
@@ -141,6 +142,18 @@ export function Lifecycle({
     s.supply === "0" &&
     unpaid.length === 0 &&
     s.actions.every((a) => a.status === 4);
+  async function release() {
+    setBusy(true);
+    try {
+      await post("action", { operation: "withdraw" }, s.config.state);
+      await refresh();
+      notify("Остаток escrow возвращён эмитенту");
+    } catch (e) {
+      notify((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   async function retry() {
     setBusy(true);
     try {
@@ -292,6 +305,11 @@ export function Lifecycle({
                 : "Ещё не выполнялся"}
             </dd>
           </dl>
+          {s.automation.closed && !s.automation.enabled && (
+            <p className="forecast-note">
+              Выпуск закрыт, автопилот остановлен.
+            </p>
+          )}
           {s.automation.error && (
             <div className="workspace-error" role="alert">
               {s.automation.error}
@@ -359,10 +377,21 @@ export function Lifecycle({
           </span>
         </div>
         {closed && escrow > 0n && (
-          <p className="workspace-error">
-            Остаток escrow: {money(escrow)}. Вывод остатка не поддерживается
-            текущей программой; средства остаются в хранилище.
-          </p>
+          <div className="escrow-release">
+            <span>
+              Остаток escrow после всех выплат: <b>{money(escrow)}</b>.
+              Программа переводит его только эмитенту и только после полного
+              погашения.
+            </span>
+            <button
+              className="button secondary"
+              disabled={busy}
+              onClick={() => void release()}
+            >
+              <Undo2 size={16} />
+              Вернуть остаток эмитенту
+            </button>
+          </div>
         )}
         {s.config.metadata?.termsHash && (
           <p className="terms-hash">

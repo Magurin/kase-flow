@@ -26,6 +26,7 @@ type Terms = {
   couponBps: number;
   frequency: number;
   periods: number;
+  timeMode?: "demo" | "calendar";
   duration: number;
   supply: number;
   document: string;
@@ -64,7 +65,8 @@ const fresh = (): Terms => ({
   couponBps: 1000,
   frequency: 2,
   periods: 4,
-  duration: 86400,
+  timeMode: "demo",
+  duration: 600,
   supply: 1000,
   document: "",
   applications: [
@@ -81,6 +83,13 @@ const statusName: Record<string, string> = {
   published: "Размещён",
   needs_review: "Требует проверки",
 };
+// Coupons pay rate / frequency per period, so the nominal tenor is
+// periods / frequency years; calendar mode runs it in real Devnet time.
+const tenor = (periods: number, frequency: number) => {
+  const months = Math.round((periods * 12) / frequency);
+  return months % 12 === 0 ? `${months / 12} г.` : `${months} мес.`;
+};
+const YEAR = 31_536_000;
 const cash = (n: bigint) =>
   new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 6 }).format(
     Number(n) / 1e6,
@@ -129,7 +138,11 @@ export function Workspace({
   };
   function open(d?: Draft) {
     setDraft(d ?? null);
-    setTerms(d ? structuredClone(d.terms) : fresh());
+    const t = d ? structuredClone(d.terms) : fresh();
+    // Drafts saved before time modes existed: long terms were real time.
+    t.timeMode ??= t.duration > 86400 ? "calendar" : "demo";
+    if (t.timeMode === "demo" && t.duration > 86400) t.duration = 600;
+    setTerms(t);
     setStep(d ? 2 : 0);
     setDirty(!d);
     setEditing(true);
@@ -141,6 +154,12 @@ export function Workspace({
   );
   let principal = 0n,
     coupon = 0n;
+  const periods =
+    Number.isSafeInteger(terms.periods) && terms.periods > 0
+      ? terms.periods
+      : 0;
+  // Matches server escrowBudget: one micro-unit per holder per period for rounding.
+  const reserve = BigInt(terms.applications.length * periods);
   try {
     const [whole, fraction = ""] = terms.face.split(".");
     const face =
@@ -513,28 +532,53 @@ export function Workspace({
                       />
                     </label>
                     <label>
-                      Срок в Devnet
+                      Режим времени
                       <CustomSelect
-                        label="Срок в Devnet"
-                        value={terms.duration}
-                        onChange={(duration) => change({ duration })}
+                        label="Режим времени"
+                        value={terms.timeMode === "calendar" ? 1 : 0}
+                        onChange={(mode) =>
+                          change(
+                            mode
+                              ? { timeMode: "calendar" }
+                              : { timeMode: "demo", duration: 600 },
+                          )
+                        }
                         options={[
-                          { value: 300, label: "5 минут — демо" },
-                          { value: 600, label: "10 минут — демо" },
-                          { value: 3600, label: "1 час — демо" },
-                          { value: 86400, label: "1 день — демо" },
-                          { value: 2592000, label: "30 дней" },
-                          { value: 31536000, label: "1 год" },
-                          { value: 63072000, label: "2 года" },
+                          { value: 0, label: "Демо: сжатое время" },
+                          { value: 1, label: "Реальный календарь" },
                         ]}
                         disabled={busy || !editable}
                       />
                     </label>
+                    {terms.timeMode !== "calendar" && (
+                      <label>
+                        Длительность демо
+                        <CustomSelect
+                          label="Длительность демо"
+                          value={terms.duration}
+                          onChange={(duration) => change({ duration })}
+                          options={[
+                            { value: 300, label: "5 минут" },
+                            { value: 600, label: "10 минут" },
+                            { value: 3600, label: "1 час" },
+                            { value: 86400, label: "1 день" },
+                          ]}
+                          disabled={busy || !editable}
+                        />
+                      </label>
+                    )}
                   </div>
                   <p className="muted">
-                    Демо-срок сжимает календарь. Размер каждого купона
-                    рассчитывается по ставке и частоте, без пропорционального
-                    уменьшения.
+                    Номинальный срок:{" "}
+                    <b>
+                      {terms.periods > 0 && terms.frequency > 0
+                        ? tenor(terms.periods, terms.frequency)
+                        : "-"}
+                    </b>{" "}
+                    ({terms.periods} купонов по {terms.frequency} в год).{" "}
+                    {terms.timeMode === "calendar"
+                      ? `Выпуск живёт в Devnet ${Math.round((terms.periods * YEAR) / terms.frequency / 86400)} дней, даты купонов реальные.`
+                      : "В демо этот срок сжат в выбранную длительность; суммы купонов те же, что при реальном сроке."}
                   </p>
                   <label>
                     Описание условий и документов
@@ -681,19 +725,11 @@ export function Workspace({
                     <b>{cash(coupon)}</b>
                   </div>
                   <div>
-                    <span>Полный бюджет выплат</span>
+                    <span>Полный бюджет escrow</span>
                     <b>
-                      {cash(
-                        principal +
-                          coupon *
-                            BigInt(
-                              Number.isSafeInteger(terms.periods) &&
-                                terms.periods > 0
-                                ? terms.periods
-                                : 0,
-                            ),
-                      )}
+                      {cash(principal + coupon * BigInt(periods) + reserve)}
                     </b>
+                    <small>включая резерв на округление {cash(reserve)}</small>
                   </div>
                 </div>
                 <p className="muted">

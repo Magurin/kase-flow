@@ -243,7 +243,10 @@ pub fn process_instruction(
             match other {
                 Instruction::AttachTokens => token::attach(program_id, accounts, &mut s)?,
                 Instruction::Cancel => {
-                    ensure(s.authority == signer.key.to_bytes(), "Issuer authority required")?;
+                    ensure(
+                        s.authority == signer.key.to_bytes(),
+                        "Issuer authority required",
+                    )?;
                     let a = s.actions.last().ok_or(ProgramError::InvalidArgument)?;
                     ensure(
                         a.status < 3 && a.rows.iter().all(|r| !r.settled),
@@ -253,7 +256,10 @@ pub fn process_instruction(
                     msg!("Latest action cancelled");
                 }
                 Instruction::Withdraw => {
-                    ensure(s.authority == signer.key.to_bytes(), "Issuer authority required")?;
+                    ensure(
+                        s.authority == signer.key.to_bytes(),
+                        "Issuer authority required",
+                    )?;
                     ensure(
                         s.tokens.enabled && s.supply == 0 && !active(&s),
                         "Escrow is released only after full redemption",
@@ -285,7 +291,10 @@ pub fn process_instruction(
                         let due = s.issued_at
                             + (s.maturity - s.issued_at) * (period as i64) / (s.periods as i64);
                         ensure(record_at >= due, "Coupon period not due")?;
-                        ensure(record_at <= latest(due), "Record date too far after due date")?;
+                        ensure(
+                            record_at <= latest(due),
+                            "Record date too far after due date",
+                        )?;
                         ensure(bps == 0, "Coupon uses instrument rate")?;
                     } else if kind == 1 {
                         ensure(

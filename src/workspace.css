@@ -565,3 +565,12 @@
     font-size: 11px;
   }
 }
+.budget-grid > div {
+  flex-wrap: wrap;
+}
+.budget-grid small {
+  flex-basis: 100%;
+  margin-top: -14px;
+  font-size: 11px;
+  color: var(--kase-muted);
+}
