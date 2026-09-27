@@ -261,7 +261,7 @@ export function App({
               </b>
             </div>
             <div className={`strip-item ${next?.step ? "alert" : ""}`}>
-              <span>{next?.title}</span>
+              <span>{closed ? "Статус выпуска" : next?.title}</span>
               <b>
                 {next?.at && next.at > now
                   ? `через ${span(next.at - now)}`

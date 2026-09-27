@@ -11,8 +11,16 @@ const context = await browser.newContext({
 const page = await context.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
-const state = async () =>
-  await (await page.request.get("http://127.0.0.1:3001/api/state")).json();
+// Read the issue this browser session created, never the server default:
+// someone may create another demo issue while the test runs.
+const state = async () => {
+  const id = await page.evaluate(() => localStorage.getItem("kase-selected-issue"));
+  return await (
+    await page.request.get("http://127.0.0.1:3001/api/state", {
+      headers: id ? { "X-Instrument-ID": id } : {},
+    })
+  ).json();
+};
 const pause = (ms) => page.waitForTimeout(ms);
 const click = async (name) => {
   const b = page.getByRole("button", { name, exact: true }).first();
@@ -117,7 +125,12 @@ try {
   fs.writeFileSync(
     "artifacts/demo-audit.json",
     JSON.stringify(
-      await (await page.request.get("http://127.0.0.1:3001/api/export")).json(),
+      await (
+        await page.request.get(
+          "http://127.0.0.1:3001/api/export?issue=" +
+            (await page.evaluate(() => localStorage.getItem("kase-selected-issue"))),
+        )
+      ).json(),
       null,
       2,
     ),
