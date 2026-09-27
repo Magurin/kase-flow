@@ -1,4 +1,5 @@
 import { issueContext } from "./context.mjs";
+import { escrowBudget } from "./workspace.mjs";
 import {
   Connection,
   Keypair,
@@ -15,6 +16,10 @@ import {
   ExtensionType,
   getMintLen,
   createInitializePermanentDelegateInstruction,
+  createInitializeMetadataPointerInstruction,
+  createInitializeInstruction as createInitializeTokenMetadataInstruction,
+  createSetAuthorityInstruction,
+  AuthorityType,
   createInitializeMint2Instruction,
   createAssociatedTokenAccountIdempotentInstruction,
   getAssociatedTokenAddressSync,
@@ -213,6 +218,7 @@ export async function createInstrument(
     couponBps = 1000,
     frequency = 2,
     names = ["Alatau Capital", "Steppe Ventures", "Aida S.", "Timur K."],
+    label = { name: "Steppe Energy 2028", symbol: "STPE.28" },
     holderWallets = null,
     metadata = null,
     checkpoint = async () => {},
@@ -271,7 +277,7 @@ export async function createInstrument(
         units,
         periods,
         funding,
-        { face: BigInt(face), couponBps, frequency },
+        { face: BigInt(face), couponBps, frequency, label },
         async (signatures) =>
           checkpoint({
             config,
@@ -306,6 +312,20 @@ export function tokenKeys(config, data) {
       meta(bonds[data[1]], true),
       meta(bonds[data[2]], true),
     ];
+  if (data[0] === 8)
+    return [
+      meta(vaultAuthority(config)),
+      meta(cashMint),
+      meta(vault, true),
+      meta(TOKEN_PROGRAM_ID),
+      meta(
+        getAssociatedTokenAddressSync(
+          new PublicKey(cashMint),
+          loadKey("issuer.json").publicKey,
+        ),
+        true,
+      ),
+    ];
   if (data[0] !== 4 && data[0] !== 6) return [];
   const settlement = [
     ...common,
@@ -331,38 +351,95 @@ async function attachTokens(
     pda = vaultAuthority(config);
   const bond = Keypair.generate(),
     cash = Keypair.generate();
-  const length = getMintLen([ExtensionType.PermanentDelegate]);
   const signatures = [];
-  const tx = new Transaction().add(
-    SystemProgram.createAccount({
-      fromPubkey: issuer.publicKey,
-      newAccountPubkey: bond.publicKey,
-      space: length,
-      lamports: await connection.getMinimumBalanceForRentExemption(length),
-      programId: TOKEN_2022_PROGRAM_ID,
-    }),
-    createInitializePermanentDelegateInstruction(
-      bond.publicKey,
-      pda,
-      TOKEN_2022_PROGRAM_ID,
+  // Wallets show the bond by name: Token-2022 metadata lives in the mint itself.
+  // The issuer initializes it, then hands mint authority to the program PDA.
+  const length = getMintLen([
+    ExtensionType.PermanentDelegate,
+    ExtensionType.MetadataPointer,
+  ]);
+  const name = clip(terms.label?.name || "KASE Flow bond", 32),
+    symbol = clip(terms.label?.symbol || "BOND", 10);
+  const metadataLength =
+    4 +
+    32 +
+    32 +
+    [name, symbol, ""].reduce((n, v) => n + 4 + Buffer.byteLength(v), 0) +
+    4;
+  signatures.push(
+    await confirmSend(
+      new Transaction().add(
+        SystemProgram.createAccount({
+          fromPubkey: issuer.publicKey,
+          newAccountPubkey: bond.publicKey,
+          space: length,
+          lamports: await connection.getMinimumBalanceForRentExemption(
+            length + metadataLength,
+          ),
+          programId: TOKEN_2022_PROGRAM_ID,
+        }),
+        createInitializePermanentDelegateInstruction(
+          bond.publicKey,
+          pda,
+          TOKEN_2022_PROGRAM_ID,
+        ),
+        createInitializeMetadataPointerInstruction(
+          bond.publicKey,
+          issuer.publicKey,
+          bond.publicKey,
+          TOKEN_2022_PROGRAM_ID,
+        ),
+        createInitializeMint2Instruction(
+          bond.publicKey,
+          0,
+          issuer.publicKey,
+          pda,
+          TOKEN_2022_PROGRAM_ID,
+        ),
+        createInitializeTokenMetadataInstruction({
+          programId: TOKEN_2022_PROGRAM_ID,
+          metadata: bond.publicKey,
+          updateAuthority: issuer.publicKey,
+          mint: bond.publicKey,
+          mintAuthority: issuer.publicKey,
+          name,
+          symbol,
+          uri: "",
+        }),
+        createSetAuthorityInstruction(
+          bond.publicKey,
+          issuer.publicKey,
+          AuthorityType.MintTokens,
+          pda,
+          [],
+          TOKEN_2022_PROGRAM_ID,
+        ),
+      ),
+      [issuer, bond],
     ),
-    createInitializeMint2Instruction(
-      bond.publicKey,
-      0,
-      pda,
-      pda,
-      TOKEN_2022_PROGRAM_ID,
-    ),
-    SystemProgram.createAccount({
-      fromPubkey: issuer.publicKey,
-      newAccountPubkey: cash.publicKey,
-      space: 82,
-      lamports: await connection.getMinimumBalanceForRentExemption(82),
-      programId: TOKEN_PROGRAM_ID,
-    }),
-    createInitializeMint2Instruction(cash.publicKey, 6, issuer.publicKey, null),
   );
-  signatures.push(await confirmSend(tx, [issuer, bond, cash]));
+  signatures.push(
+    await confirmSend(
+      new Transaction().add(
+        SystemProgram.createAccount({
+          fromPubkey: issuer.publicKey,
+          newAccountPubkey: cash.publicKey,
+          space: 82,
+          lamports: await connection.getMinimumBalanceForRentExemption(82),
+          programId: TOKEN_PROGRAM_ID,
+        }),
+        createInitializeMint2Instruction(
+          cash.publicKey,
+          6,
+          issuer.publicKey,
+          null,
+        ),
+      ),
+      [issuer, cash],
+    ),
+  );
+  const named = await nameCashMint(cash.publicKey, issuer);
+  if (named) signatures.push(named);
   const vault = getAssociatedTokenAddressSync(cash.publicKey, pda, true);
   config.tokens = {
     bondMint: bond.publicKey.toBase58(),
@@ -381,18 +458,9 @@ async function attachTokens(
     ),
   };
   await checkpoint(signatures);
-  const totalUnits = units.reduce((n, x) => n + BigInt(x), 0n);
   const budget =
     funding === null
-      ? totalUnits * terms.face +
-        units.reduce(
-          (n, x) =>
-            n +
-            (BigInt(x) * terms.face * BigInt(terms.couponBps)) /
-              (10000n * BigInt(terms.frequency)),
-          0n,
-        ) *
-          BigInt(periods)
+      ? escrowBudget({ units, periods, ...terms }).total
       : BigInt(funding);
   signatures.push(
     await confirmSend(
@@ -485,12 +553,129 @@ export async function fundVault(config, amount) {
     [issuer],
   );
 }
+const clip = (value, bytes) => {
+  let v = String(value).trim();
+  while (Buffer.byteLength(v) > bytes) v = v.slice(0, -1);
+  return v;
+};
+const METADATA_PROGRAM = new PublicKey(
+  "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s",
+);
+// Classic SPL mints are named through Metaplex Token Metadata (CreateMetadataAccountV3).
+// Naming is cosmetic, so a failure never blocks issuance.
+async function nameCashMint(mint, issuer) {
+  const [metadata] = PublicKey.findProgramAddressSync(
+    [Buffer.from("metadata"), METADATA_PROGRAM.toBuffer(), mint.toBuffer()],
+    METADATA_PROGRAM,
+  );
+  const text = (v) => {
+    const b = Buffer.from(v, "utf8");
+    return Buffer.concat([u32(b.length), b]);
+  };
+  const data = Buffer.concat([
+    u8(33),
+    text("KASE Flow TEST USD"),
+    text("TESTUSD"),
+    text(""),
+    u16(0),
+    u8(0), // creators
+    u8(0), // collection
+    u8(0), // uses
+    u8(1), // mutable
+    u8(0), // collection details
+  ]);
+  try {
+    return await confirmSend(
+      new Transaction().add(
+        new TransactionInstruction({
+          programId: METADATA_PROGRAM,
+          keys: [
+            { pubkey: metadata, isSigner: false, isWritable: true },
+            { pubkey: mint, isSigner: false, isWritable: false },
+            { pubkey: issuer.publicKey, isSigner: true, isWritable: false },
+            { pubkey: issuer.publicKey, isSigner: true, isWritable: true },
+            { pubkey: issuer.publicKey, isSigner: true, isWritable: false },
+            {
+              pubkey: SystemProgram.programId,
+              isSigner: false,
+              isWritable: false,
+            },
+          ],
+          data,
+        }),
+      ),
+      [issuer],
+    );
+  } catch (e) {
+    console.warn("TEST USD metadata skipped:", explain(e));
+    return null;
+  }
+}
+export async function withdrawEscrow(config) {
+  if (!config.tokens) throw Error("Escrow недоступен");
+  const issuer = loadKey("issuer.json");
+  const cash = new PublicKey(config.tokens.cashMint);
+  await confirmSend(
+    new Transaction().add(
+      createAssociatedTokenAccountIdempotentInstruction(
+        issuer.publicKey,
+        getAssociatedTokenAddressSync(cash, issuer.publicKey),
+        issuer.publicKey,
+        cash,
+      ),
+    ),
+    [issuer],
+  );
+  return send(config, u8(8));
+}
+const MESSAGES = {
+  "Record-date transfer lock":
+    "Переводы заблокированы: наступила дата фиксации реестра",
+  "Instrument matured": "Срок обращения облигаций истёк",
+  "Holder signature required": "Нужна подпись держателя-отправителя",
+  "Issuer authority required": "Нужна подпись эмитента",
+  "Active action or no capacity/supply":
+    "Сначала завершите или отмените текущее действие",
+  "Invalid kind or historical record date": "Дата фиксации уже в прошлом",
+  "Coupon period invalid or already used": "Этот купон уже выплачен",
+  "Coupon period not due": "Дата фиксации раньше даты купона",
+  "Record date too far after due date":
+    "Дата фиксации позже даты купона более чем на 30 дней",
+  "Record date too far after maturity":
+    "Дата фиксации позже погашения более чем на 30 дней",
+  "Coupon uses instrument rate": "Купон использует ставку выпуска",
+  "Redemption before maturity": "Погашение возможно только с даты погашения",
+  "Settle all coupon periods before final redemption":
+    "Перед погашением выплатите все купоны",
+  "Invalid partial redemption":
+    "Частичное погашение: 1-99% и дата до срока погашения",
+  "Partial redemption retires no whole bond":
+    "При такой доле ни одна целая облигация не погашается",
+  "Reserve capacity for coupons and final redemption":
+    "Не осталось слотов для купонов и погашения",
+  "Snapshot not due or already taken":
+    "Реестр ещё нельзя зафиксировать или он уже зафиксирован",
+  "Snapshot required; cannot initiate twice": "Сначала зафиксируйте реестр",
+  "Settlement not initiated": "Расчёт не инициирован",
+  "Already settled": "Выплата уже проведена",
+  "Only an unpaid action can be cancelled":
+    "Отменить можно только действие без проведённых выплат",
+  "Escrow is released only after full redemption":
+    "Остаток escrow доступен только после полного погашения",
+  "Escrow is empty": "Escrow пуст",
+  "Unexpected bond mint extensions": "Недопустимые расширения mint облигации",
+};
 export function explain(error) {
   const logs = error.logs || [];
   const line = logs.find(
     (l) => l.startsWith("Program log:") && !l.includes("Instruction:"),
   );
-  return (
-    line?.replace("Program log: ", "") || error.message || "Transaction failed"
-  );
+  const text =
+    line?.replace("Program log: ", "") ||
+    error.message ||
+    "Транзакция не выполнена";
+  if (MESSAGES[text]) return MESSAGES[text];
+  if (/insufficient funds/i.test(text))
+    return "Недостаточно средств в escrow. Пополните тестовый баланс.";
+  return text;
 }

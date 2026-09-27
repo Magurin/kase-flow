@@ -105,7 +105,7 @@ try {
     }),
   });
   assert.equal(bad.status, 400);
-  assert.match((await bad.json()).error, /do not match/);
+  assert.match((await bad.json()).error, /не совпадают/);
   await page
     .getByRole("button", { name: "Подписать получение", exact: true })
     .click();

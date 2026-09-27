@@ -25,6 +25,8 @@ import {
   tokenBalances,
   instruction,
   fundVault,
+  withdrawEscrow,
+  waitSignature,
   assertTestNetwork,
 } from "./chain.mjs";
 const app = express();
@@ -43,6 +45,23 @@ const readAuto = () =>
     : { enabled: false, error: null, lastRun: null };
 const saveAuto = (automation) => writeJson(autoFile(), automation);
 const snapshots = new Map();
+// Writes are serialized per instrument; issuance has its own lock. Operations
+// on different instruments, and the scheduler on other issues, never block each other.
+const locks = new Set();
+const CREATE = "issuance";
+const BUSY = "Дождитесь завершения текущей операции по этому выпуску";
+const lockId = () => issueContext.getStore()?.id ?? readConfig().state;
+async function exclusive(res, id, operation) {
+  if (locks.has(id)) return res.status(409).json({ error: BUSY });
+  locks.add(id);
+  try {
+    await operation();
+  } catch (e) {
+    if (!res.headersSent) res.status(400).json({ error: explain(e) });
+  } finally {
+    locks.delete(id);
+  }
+}
 function record(type, signature, extra = {}) {
   snapshots.clear();
   const entries = journal();
@@ -54,7 +73,11 @@ function record(type, signature, extra = {}) {
   });
   writeJson(journalFile(), entries);
 }
+// The API trusts only loopback clients; a foreign Host header means DNS rebinding.
+const LOOPBACK = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/;
 app.use("/api", (req, res, next) => {
+  if (!LOOPBACK.test(req.headers.host || ""))
+    return res.status(403).json({ error: "Host denied" });
   if (req.method === "POST")
     res.on("finish", () => {
       snapshots.clear();
@@ -97,7 +120,7 @@ async function snapshot(config = readConfig()) {
     const balances = await tokenBalances(config);
     const item = workspace.data.issues.find((i) => i.id === id);
     if (item) {
-      item.stats = {
+      const stats = {
         supply: instrument.supply,
         paid: String(
           instrument.actions
@@ -107,9 +130,13 @@ async function snapshot(config = readConfig()) {
         ),
         escrow: balances?.escrow ?? "0",
         maturity: instrument.maturity,
-        updatedAt: new Date().toISOString(),
       };
-      workspace.save();
+      const { updatedAt, ...previous } = item.stats ?? {};
+      // Persist only real changes; polling must not rewrite the catalog.
+      if (JSON.stringify(previous) !== JSON.stringify(stats)) {
+        item.stats = { ...stats, updatedAt: new Date().toISOString() };
+        workspace.save();
+      }
     }
     return {
       ...instrument,
@@ -138,7 +165,6 @@ app.get("/api/state", async (req, res) => {
     res.status(503).json({ error: explain(e) });
   }
 });
-let pending = false;
 app.get("/api/workspace", (req, res) =>
   res.json({
     issues: workspace.data.issues,
@@ -146,7 +172,7 @@ app.get("/api/workspace", (req, res) =>
       ...d,
       budget: draftBudget(d.terms),
     })),
-    pending,
+    pending: locks.has(CREATE),
   }),
 );
 app.post("/api/drafts", (req, res) => {
@@ -165,12 +191,10 @@ app.post("/api/drafts/:id/approve", (req, res) => {
     res.status(400).json({ error: explain(e) });
   }
 });
-app.post("/api/drafts/:id/publish", async (req, res) => {
-  if (pending)
-    return res
-      .status(409)
-      .json({ error: "Дождитесь завершения текущей операции" });
-  pending = true;
+app.post("/api/drafts/:id/publish", (req, res) =>
+  exclusive(res, CREATE, () => publish(req, res)),
+);
+async function publish(req, res) {
   let draft;
   try {
     await assertTestNetwork();
@@ -195,6 +219,7 @@ app.post("/api/drafts/:id/publish", async (req, res) => {
       names: t.applications.map((a) => a.name),
       holderWallets: t.applications.map((a) => a.wallet),
       metadata,
+      label: { name: t.name, symbol: t.symbol },
       checkpoint: async ({ config, holders, account, setupSignatures }) => {
         draft.provisioning = { config, setupSignatures };
         workspace.save();
@@ -222,6 +247,8 @@ app.post("/api/drafts/:id/publish", async (req, res) => {
           [...h.secretKey],
         );
     });
+    // Holder keys now live with the issue; the staging copy is no longer needed.
+    fs.rmSync(provisioning, { recursive: true, force: true });
     draft.status = "published";
     draft.issueId = result.config.state;
     draft.publishedAt = new Date().toISOString();
@@ -239,18 +266,11 @@ app.post("/api/drafts/:id/publish", async (req, res) => {
       workspace.save();
     }
     res.status(400).json({ error: explain(e) });
-  } finally {
-    pending = false;
   }
-});
+}
 // Reconcile a completed issuance after an ambiguous response; this sends no transactions.
-app.post("/api/drafts/:id/reconcile", async (req, res) => {
-  if (pending)
-    return res
-      .status(409)
-      .json({ error: "Дождитесь завершения текущей операции" });
-  pending = true;
-  try {
+app.post("/api/drafts/:id/reconcile", (req, res) =>
+  exclusive(res, CREATE, async () => {
     const d = workspace.getDraft(req.params.id);
     if (d.status !== "needs_review" || !d.provisioning?.config)
       throw Error("Нет прерванного размещения для проверки");
@@ -292,6 +312,7 @@ app.post("/api/drafts/:id/reconcile", async (req, res) => {
           path.join(workspace.dir(config.state), `holder-${i}.json`),
         );
     });
+    fs.rmSync(staging, { recursive: true, force: true });
     d.status = "published";
     d.issueId = config.state;
     d.error = null;
@@ -301,33 +322,27 @@ app.post("/api/drafts/:id/reconcile", async (req, res) => {
     });
     workspace.save();
     res.json({ issueId: config.state });
-  } catch (e) {
-    res.status(400).json({ error: explain(e) });
-  } finally {
-    pending = false;
-  }
-});
-app.post("/api/demo", async (req, res) => {
-  if (pending)
-    return res.status(409).json({ error: "Another transaction is confirming" });
-  pending = true;
-  try {
+  }),
+);
+app.post("/api/demo", (req, res) =>
+  exclusive(res, CREATE, async () => {
     await assertTestNetwork();
     const old = readConfig();
     const wallet = req.body.wallet
       ? new PublicKey(req.body.wallet).toBase58()
       : null;
-    const { config, holders, signature, setupSignatures } =
-      await createInstrument(old.programId, {
-        tokenized: true,
-        duration: 600,
-        wallet,
-      });
     const metadata = {
       issuer: "Steppe Energy",
       name: "Steppe Energy",
       symbol: "STPE.28",
     };
+    const { config, holders, signature, setupSignatures } =
+      await createInstrument(old.programId, {
+        tokenized: true,
+        duration: 600,
+        wallet,
+        label: { name: "Steppe Energy 2028", symbol: "STPE.28" },
+      });
     const entries = setupSignatures.map((signature) => ({
       type: "Instrument setup",
       signature,
@@ -345,24 +360,26 @@ app.post("/api/demo", async (req, res) => {
     writeJson(fileURLToPath(new URL("config.json", LOCAL)), config);
     writeJson(fileURLToPath(new URL("journal.json", LOCAL)), entries);
     res.json({ signature, issueId: config.state });
-  } catch (e) {
-    res.status(400).json({ error: explain(e) });
-  } finally {
-    pending = false;
-  }
-});
-app.post("/api/action", async (req, res) => {
-  if (pending)
-    return res.status(409).json({ error: "Another transaction is confirming" });
-  pending = true;
-  try {
+  }),
+);
+const OPERATIONS = {
+  schedule: "Действие запланировано",
+  snapshot: "Реестр зафиксирован",
+  initiate: "Расчёт инициирован",
+  confirm: "Выплата проведена",
+  transfer: "Перевод облигаций",
+  cancel: "Действие отменено",
+  withdraw: "Остаток escrow возвращён эмитенту",
+};
+app.post("/api/action", (req, res) =>
+  exclusive(res, lockId(), async () => {
     const config = readConfig();
     const { operation } = req.body;
     let data;
     let signer;
     const integer = (v, min, max) => {
       if (!Number.isInteger(v) || v < min || v > max)
-        throw new Error("Invalid integer input");
+        throw new Error("Некорректное числовое значение");
       return v;
     };
     if (operation === "schedule") {
@@ -374,7 +391,8 @@ app.post("/api/action", async (req, res) => {
         u16(integer(bps, 0, 10000)),
         i64(integer(recordAt, 0, Number.MAX_SAFE_INTEGER)),
       ]);
-    } else if (operation === "snapshot") data = u8(2);
+    } else if (operation === "cancel") data = u8(7);
+    else if (operation === "snapshot") data = u8(2);
     else if (operation === "initiate") data = u8(3);
     else if (operation === "confirm")
       data = Buffer.concat([u8(4), u8(integer(req.body.holder, 0, 15))]);
@@ -382,32 +400,36 @@ app.post("/api/action", async (req, res) => {
       const from = integer(req.body.from, 0, 15),
         to = integer(req.body.to, 0, 15),
         units = integer(req.body.units, 1, 1e9);
-      signer = loadKey(
-        pathToFileURL(path.join(currentDir(), `holder-${from}.json`)).href,
-      );
+      const keyFile = path.join(currentDir(), `holder-${from}.json`);
+      if (!fs.existsSync(keyFile))
+        throw Error(
+          "Этот держатель подписывает переводы своим кошельком, не сервером",
+        );
+      signer = loadKey(pathToFileURL(keyFile).href);
       if (
         signer.publicKey.toBase58() !==
         (await state(config)).holders[from]?.wallet
       )
-        throw Error("Use the connected wallet to sign this transfer");
+        throw Error("Ключ держателя не совпадает с реестром");
       data = Buffer.concat([u8(5), u8(from), u8(to), u64(units)]);
-    } else throw new Error("Unknown operation");
-    const signature = await send(config, data, signer);
+    } else if (operation !== "withdraw")
+      throw new Error("Неизвестная операция");
+    const signature =
+      operation === "withdraw"
+        ? await withdrawEscrow(config)
+        : await send(config, data, signer);
     const entries = journal();
     entries.unshift({
       type: operation,
+      label: OPERATIONS[operation],
       signature,
       time: new Date().toISOString(),
       holder: req.body.holder,
     });
     writeJson(journalFile(), entries);
     res.json({ signature });
-  } catch (e) {
-    res.status(400).json({ error: explain(e) });
-  } finally {
-    pending = false;
-  }
-});
+  }),
+);
 app.post("/api/automation", (req, res) => {
   if (typeof req.body.enabled !== "boolean")
     return res.status(400).json({ error: "Expected enabled boolean" });
@@ -417,21 +439,14 @@ app.post("/api/automation", (req, res) => {
   saveAuto(automation);
   res.json(automation);
 });
-app.post("/api/fund", async (req, res) => {
-  if (pending)
-    return res.status(409).json({ error: "Another transaction is confirming" });
-  pending = true;
-  try {
+app.post("/api/fund", (req, res) =>
+  exclusive(res, lockId(), async () => {
     await assertTestNetwork();
     const signature = await fundVault(readConfig(), 100_000_000_000n);
     record("Test escrow funded", signature);
     res.json({ signature });
-  } catch (e) {
-    res.status(400).json({ error: explain(e) });
-  } finally {
-    pending = false;
-  }
-});
+  }),
+);
 
 // Only server-built messages can receive fee sponsorship. The holder signs;
 // neither a private key nor a caller-supplied instruction is accepted by the API.
@@ -445,14 +460,14 @@ app.post("/api/wallet/prepare", async (req, res) => {
       (h) => h.wallet === publicKey.toBase58(),
     );
     if (holder < 0 || !s.tokens.enabled)
-      throw Error("Wallet is not a holder in this tokenized issue");
+      throw Error("Кошелёк не является держателем этого выпуска");
     const a = s.actions.at(-1);
     if (
       !a ||
       ![2, 3].includes(a.status) ||
       !a.rows.some((r) => r.holder === holder && !r.settled)
     )
-      throw Error("No payable entitlement");
+      throw Error("Нет выплаты, ожидающей получения");
     const issuer = loadKey("issuer.json");
     const tx = new Transaction({
       feePayer: issuer.publicKey,
@@ -462,13 +477,15 @@ app.post("/api/wallet/prepare", async (req, res) => {
     const id = randomUUID();
     for (const [key, value] of proposals)
       if (value.expires < Date.now()) proposals.delete(key);
-    if (proposals.size >= 100) throw Error("Too many pending wallet requests");
+    if (proposals.size >= 100)
+      throw Error("Слишком много неподписанных запросов, повторите позже");
     proposals.set(id, {
       message: tx.serializeMessage().toString("base64"),
       state: config.state,
       holder,
       action: a.id,
-      expires: Date.now() + 120_000,
+      // A blockhash stays valid for about 60-90 s; expire the proposal first.
+      expires: Date.now() + 60_000,
     });
     res.json({
       id,
@@ -481,40 +498,32 @@ app.post("/api/wallet/prepare", async (req, res) => {
     res.status(400).json({ error: explain(e) });
   }
 });
-app.post("/api/wallet/submit", async (req, res) => {
-  if (pending)
-    return res.status(409).json({ error: "Another transaction is confirming" });
-  pending = true;
-  try {
+app.post("/api/wallet/submit", (req, res) =>
+  exclusive(res, lockId(), async () => {
     const p = proposals.get(req.body.id);
     if (!p || p.expires < Date.now() || p.state !== readConfig().state)
-      throw Error("Wallet request expired; prepare again");
+      throw Error("Запрос на подпись истёк, подготовьте его заново");
     const tx = Transaction.from(Buffer.from(req.body.transaction, "base64"));
     if (
       tx.serializeMessage().toString("base64") !== p.message ||
       !tx.verifySignatures()
     )
       throw Error(
-        "Transaction or signatures do not match the prepared request",
+        "Транзакция или подписи не совпадают с подготовленным запросом",
       );
     const live = await state();
     if (live.actions.at(-1)?.id !== p.action)
-      throw Error("Corporate action changed; prepare again");
+      throw Error("Корпоративное действие изменилось, подготовьте запрос заново");
     await assertTestNetwork();
     const signature = await connection.sendRawTransaction(tx.serialize(), {
       skipPreflight: false,
     });
-    const { waitSignature } = await import("./chain.mjs");
     await waitSignature(signature);
     proposals.delete(req.body.id);
     record("Wallet claim", signature, { holder: p.holder });
     res.json({ signature });
-  } catch (e) {
-    res.status(400).json({ error: explain(e) });
-  } finally {
-    pending = false;
-  }
-});
+  }),
+);
 
 // One on-chain step per tick; durable chain status is the retry checkpoint.
 // A timeout may be retried but the program rejects a second payment.
@@ -524,7 +533,8 @@ async function automate() {
   try {
     const config = readConfig(),
       s = await state(config);
-    if (!s.tokens.enabled) throw Error("Automation requires token settlement");
+    if (!s.tokens.enabled)
+      throw Error("Автопилот работает только с токенизированными выпусками");
     const now = await connection.getBlockTime(await connection.getSlot());
     const a = s.actions.at(-1);
     let data, type;
@@ -545,7 +555,14 @@ async function automate() {
         data = Buffer.from([4, row.holder]);
         type = "Auto payment";
       }
-    } else if (BigInt(s.supply) > 0n) {
+    } else if (BigInt(s.supply) === 0n) {
+      // Closed: nothing left to schedule, stop polling this issue.
+      automation.enabled = false;
+      automation.error = null;
+      automation.lastRun = new Date().toISOString();
+      automation.closed = true;
+      return saveAuto(automation);
+    } else {
       const period = Array.from({ length: s.periods }, (_, i) => i + 1).find(
         (p) => !(BigInt(s.couponMask) & (1n << BigInt(p))),
       );
@@ -582,16 +599,33 @@ async function automate() {
     saveAuto(automation);
   }
 }
-let nextIssue = 0;
-setInterval(async () => {
-  if (pending || !workspace.data.issues.length) return;
-  pending = true;
+// Visit only issues with automation enabled, round-robin, skipping any issue
+// that is busy with a manual operation.
+let nextIssue = 0,
+  ticking = false;
+const automationEnabled = (id) => {
   try {
-    const issue =
-      workspace.data.issues[nextIssue++ % workspace.data.issues.length];
+    const file = path.join(workspace.dir(id), "automation.json");
+    return (
+      fs.existsSync(file) && JSON.parse(fs.readFileSync(file, "utf8")).enabled
+    );
+  } catch {
+    return false;
+  }
+};
+setInterval(async () => {
+  if (ticking) return;
+  const enabled = workspace.data.issues.filter((i) => automationEnabled(i.id));
+  if (!enabled.length) return;
+  const issue = enabled[nextIssue++ % enabled.length];
+  if (locks.has(issue.id)) return;
+  ticking = true;
+  locks.add(issue.id);
+  try {
     await issueContext.run(workspace.context(issue.id), automate);
   } finally {
-    pending = false;
+    locks.delete(issue.id);
+    ticking = false;
   }
 }, 2500).unref();
 
@@ -601,7 +635,7 @@ app.get("/api/transaction/:signature", async (req, res) => {
       maxSupportedTransactionVersion: 0,
       commitment: "confirmed",
     });
-    if (!tx) return res.status(404).json({ error: "Transaction unavailable" });
+    if (!tx) return res.status(404).json({ error: "Транзакция не найдена" });
     res.json(tx);
   } catch (e) {
     res.status(400).json({ error: explain(e) });
@@ -631,6 +665,9 @@ app.get("/api/export", async (req, res) => {
     res.status(503).json({ error: explain(e) });
   }
 });
+app.use("/api", (req, res) =>
+  res.status(404).json({ error: "Неизвестный метод API" }),
+);
 app.use(express.static(fileURLToPath(new URL("dist/", ROOT))));
 app.get("/{*path}", (req, res) =>
   res.sendFile(fileURLToPath(new URL("dist/index.html", ROOT))),

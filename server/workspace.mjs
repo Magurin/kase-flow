@@ -38,7 +38,7 @@ export function normalizeDraft(input) {
     couponBps: integer(input.couponBps, 0, 10000, "Купон, базисные пункты"),
     frequency: integer(input.frequency, 1, 12, "Частота выплат"),
     periods: integer(input.periods, 1, 12, "Количество купонов"),
-    duration: integer(input.duration, 300, 315600000, "Срок в секундах"),
+    timeMode: input.timeMode === "calendar" ? "calendar" : "demo",
     supply: integer(input.supply, 1, 1000000, "Объём выпуска"),
     document:
       typeof input.document === "string"
@@ -46,6 +46,13 @@ export function normalizeDraft(input) {
         : "",
     applications: [],
   };
+  // Coupons pay couponBps / frequency per period, so the nominal tenor is
+  // periods / frequency years. Calendar mode runs that tenor in real time;
+  // demo mode compresses it into minutes on Devnet without changing amounts.
+  d.duration =
+    d.timeMode === "calendar"
+      ? calendarDuration(d)
+      : integer(input.duration, 300, DEMO_MAX, "Длительность демо, секунд");
   if (!/^[A-Z0-9._-]+$/.test(d.symbol))
     throw Error("Тикер: латинские буквы, цифры, точка, дефис");
   micro(d.face);
@@ -79,20 +86,46 @@ export function normalizeDraft(input) {
     throw Error("Бюджет превышает допустимый размер");
   return d;
 }
-export function draftBudget(d) {
-  const face = micro(d.face),
-    principal = BigInt(d.supply) * face;
-  const coupon = d.applications.reduce(
-    (n, a) =>
+export const YEAR = 31_536_000;
+export const DEMO_MAX = 86_400;
+export const calendarDuration = (d) =>
+  Math.round((d.periods * YEAR) / d.frequency);
+/**
+ * Escrow needed for every coupon and full principal. Each holder's coupon is
+ * rounded down separately; transfers can regroup units and gain up to one
+ * micro-unit per holder per period, so that margin is reserved.
+ */
+export function escrowBudget({ units, face, couponBps, frequency, periods }) {
+  face = BigInt(face);
+  const principal = units.reduce((n, u) => n + BigInt(u), 0n) * face;
+  const coupon = units.reduce(
+    (n, u) =>
       n +
-      (BigInt(a.units) * face * BigInt(d.couponBps)) /
-        (10000n * BigInt(d.frequency)),
+      (BigInt(u) * face * BigInt(couponBps)) / (10000n * BigInt(frequency)),
     0n,
   );
+  const reserve = BigInt(units.length) * BigInt(periods);
   return {
-    principal: String(principal),
-    coupon: String(coupon),
-    total: String(principal + coupon * BigInt(d.periods)),
+    principal,
+    coupon,
+    reserve,
+    total: principal + coupon * BigInt(periods) + reserve,
+  };
+}
+export function draftBudget(d) {
+  const b = escrowBudget({
+    units: d.applications.map((a) => a.units),
+    face: micro(d.face),
+    couponBps: d.couponBps,
+    frequency: d.frequency,
+    periods: d.periods,
+  });
+  return {
+    principal: String(b.principal),
+    coupon: String(b.coupon),
+    reserve: String(b.reserve),
+    total: String(b.total),
+    tenorYears: d.periods / d.frequency,
   };
 }
 export const termsHash = (d) =>

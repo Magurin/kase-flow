@@ -8,7 +8,9 @@ import {
   WorkspaceStore,
   normalizeDraft,
   draftBudget,
+  escrowBudget,
   micro,
+  YEAR,
 } from "../server/workspace.mjs";
 import { issueContext } from "../server/context.mjs";
 import { readConfig } from "../server/chain.mjs";
@@ -48,7 +50,26 @@ test("micro amounts are exact, coupon budget rounds per holder", () => {
   const b = draftBudget(d);
   assert.equal(b.coupon, "69444442");
   assert.equal(b.principal, "3703703670");
-  assert.equal(b.total, "3842592554");
+  // Reserve: one micro-unit per holder per period for regrouped rounding.
+  assert.equal(b.reserve, "4");
+  assert.equal(b.total, "3842592558");
+  assert.equal(b.tenorYears, 0.5);
+});
+test("reserve covers rounding gained when transfers regroup units", () => {
+  const terms = { face: 1n, couponBps: 5000, frequency: 2, periods: 1 };
+  // 3 + 3 units pay 0 + 0 separately; after a transfer 6 units pay 1.
+  const budget = escrowBudget({ units: [3, 3], ...terms });
+  assert.equal(budget.coupon, 0n);
+  const merged = escrowBudget({ units: [6], ...terms });
+  assert.ok(budget.total - budget.principal >= merged.coupon);
+});
+test("calendar terms run the nominal tenor; demo terms compress it", () => {
+  const calendar = normalizeDraft({ ...terms(), timeMode: "calendar" });
+  assert.equal(calendar.duration, Math.round((2 * YEAR) / 4));
+  const demo = normalizeDraft(terms());
+  assert.equal(demo.timeMode, "demo");
+  assert.equal(demo.duration, 600);
+  assert.throws(() => normalizeDraft({ ...terms(), duration: 2 * 86_400 }));
 });
 test("allocation, duplicate wallet and unsupported parameters rejected", () => {
   const d = terms();
